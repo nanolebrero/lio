@@ -132,6 +132,7 @@ obj/intfld.o: intfld.f
 
 obj/dipG.o: dipG.f
 	ifort -o $@ $(CFLAGS2) $(G2G_CFLAGS) $<
+
 obj/dip.o: dip.f
 	ifort -o $@ $(CFLAGS2) $(G2G_CFLAGS) $<
 
@@ -158,8 +159,10 @@ obj/matmulnano.o: matmulnano.f
 
 obj/conmut.o: conmut.f
 	ifort -o $@ $(CFLAGS3)  $(G2G_CFLAGS) $<
+
 obj/matmuldiag.o: matmuldiag.f
 	ifort -o $@ $(CFLAGS3)  $(G2G_CFLAGS) $<
+
 obj/int3lu.o: int3lu.f
 	ifort -o $@ $(CFLAGS3)  $(G2G_CFLAGS) $<
 

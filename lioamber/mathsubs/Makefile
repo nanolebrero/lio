@@ -15,22 +15,28 @@ INCLUDES += transbase.f transbase_h.f
 #
 # COMMANDS
 #--------------------------------------------------------------------#
-all : auxsubs.o
-	cp auxsubs.mod ../.
-	cp auxsubs.o ../obj/garcha_g2g_obj/.
+all : mathsubs.o
+	cp mathsubs.mod ../.
+	cp mathsubs.o ../obj/.
 
-auxsubs.o : $(INCLUDES)
-
-test : testprog.x
-
-testprog.x : testprog.o auxsubs.o
-	$(FC) $(FFLAGS) auxsubs.o testprog.o -o testprog.x
+mathsubs.o : $(INCLUDES)
 
 %.o : %.f
 	$(FC) $(FFLAGS) -c $< -o $@
 
+#--------------------------------------------------------------------#
+.PHONY: test
+TOFLAGS = -g
+TXFLAGS = -g
+test : test.x
+
+test.x : mathsubs.o test.o
+	$(FC) $(TXFLAGS) $^ -o $@
+test.o : test_mathsubs.f mathsubs.o
+	$(FC) $(TOFLAGS) -c $< -o $@
+#--------------------------------------------------------------------#
 .PHONY: clean
 clean :
-	rm -f auxsubs.o auxsubs.mod testprog.o testprog.x
-
+	rm -f mathsubs.o mathsubs.mod
+	rm -f test.o test.x
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#

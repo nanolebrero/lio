@@ -166,9 +166,17 @@ obj/garcha_g2g_obj/int3lu.o: int3lu.f
 obj/garcha_g2g_obj/intsol.o: intsol.f
 	ifort -o $@ $(CFLAGS2) $(G2G_CFLAGS)  $<
 
-.PHONY: obj/garcha_g2g_obj/auxsubs
-obj/garcha_g2g_obj/auxsubs:
-	echo 'aver'
+obj/garcha_g2g_obj/auxsubs.o:
+	@echo
+	@echo 'WARNING: module auxsubs.o not compiled.'
+	@echo 'This module is yet not part of lio, so' \
+              'this should not imply any problem.'
+	@echo 'If for any reason you need this module,' \
+              'just enter in the auxsubs folder'
+	@echo 'and call make before returning here and' \
+              'recompiling again lio.'
+	@echo
+
 
 
 ### Objects

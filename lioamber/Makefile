@@ -169,18 +169,9 @@ obj/int3lu.o: int3lu.f
 obj/intsol.o: intsol.f
 	ifort -o $@ $(CFLAGS2) $(G2G_CFLAGS)  $<
 
+.PHONY: obj/mathsubs.o
 obj/mathsubs.o:
-	@echo
-	@echo 'WARNING: module mathsubs.o not compiled.'
-	@echo 'This module is yet not part of lio, so' \
-              'this should not imply any problem.'
-	@echo 'If for any reason you need this module,' \
-              'just enter in the mathsubs folder'
-	@echo 'and call make before returning here and' \
-              'recompiling again lio.'
-	@echo
-
-
+	cd mathsubs; $(MAKE) --no-print-directory
 
 ### Objects
 obj/%.o: %.f

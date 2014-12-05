@@ -13,17 +13,19 @@ INCLUDES += commutate.f commutate_h.f
 INCLUDES += transbase.f transbase_h.f
 #
 #
-# COMMANDS
+# MODULE COMPILATION COMMANDS
 #--------------------------------------------------------------------#
 all : mathsubs.o
 	cp mathsubs.mod ../.
 	cp mathsubs.o ../obj/.
 
+
 mathsubs.o : $(INCLUDES)
 
 %.o : %.f
 	$(FC) $(FFLAGS) -c $< -o $@
-
+#
+# TEST
 #--------------------------------------------------------------------#
 .PHONY: test
 TOFLAGS = -g
@@ -34,6 +36,8 @@ test.x : mathsubs.o test.o
 	$(FC) $(TXFLAGS) $^ -o $@
 test.o : test_mathsubs.f mathsubs.o
 	$(FC) $(TOFLAGS) -c $< -o $@
+#
+# CLEAN
 #--------------------------------------------------------------------#
 .PHONY: clean
 clean :

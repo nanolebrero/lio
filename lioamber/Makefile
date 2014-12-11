@@ -1,21 +1,27 @@
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#
 # LIBLIO MAKEFILE
 #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#
-MODS_PATH =
-LIBS_PATH =
+#MODS_PATH = mod/
+#GETMODS  = -I/$(MODS_PATH)
+#PUTMODS  = -J/$(MODS_PATH)
 
+#BASEMODS_F = $(wildcard liomods/*.f)
+#BASEMODS_O = $(BASEMODS_F:%.f=%.o)
+
+#MODULES += mathsubs.mod
+#MODULES += maskrmm.mod
+MODS_PATH =
 
 # LIBS BASIC
 #--------------------------------------------------------------------#
-#MODS_PATH += -I/mathsubs
+LIBS_PATH =
 LIBS_PATH += -L../g2g -L/usr/lib -L/usr/lib64
 LIBS_LIBS += -lg2g -lstdc++
 
 
 # MKL LIBS AND MODS
 #--------------------------------------------------------------------#
-MODS_PATH += -I$(MKLROOT)/include
-LIBS_PATH += -L$(MKLROOT)/lib/intel64
+LIBS_PATH += -L$(MKLROOT)/lib/intel64 -I$(MKLROOT)/include
 LIBS_LIBS += -lmkl_lapack95_lp64
 LIBS_LIBS += -lmkl_intel_lp64
 LIBS_LIBS += -lmkl_intel_thread
@@ -25,7 +31,7 @@ LIBS_LIBS += -lmkl_core
 #--------------------------------------------------------------------#
 LIBS_MOAR = -liomp5 -lpthread -lm -Wl,-rpath='$$ORIGIN/' -Wl,-rpath='$$ORIGIN/../g2g'
 
-LIBS = $(MODS_PATH) $(LIBS_PATH) $(PROFILE) $(LIBS_LIBS) $(LIBS_MOAR)
+LIBS = $(LIBS_PATH) $(PROFILE) $(LIBS_LIBS) $(LIBS_MOAR)
 #
 #
 #
@@ -38,7 +44,7 @@ MOD_SRCS=$(wildcard liomods/*.f)
 GARCHA_SRCS=$(wildcard *.f)
 
 MOD_OBJ=$(MOD_SRCS:%.f=%.o)
-GARCHA_OBJ = mathsubs.o
+GARCHA_OBJ = mathsubs.o maskrmm.o
 GARCHA_OBJ += $(MOD_OBJ) $(COMMON_SRCS:%.f=%.o) $(GARCHA_SRCS:%.f=%.o)
 
 #--------------------------------------------------------------------#
@@ -118,13 +124,10 @@ endif
 ## Targets: make ##
 
 all: dirs liblio-g2g.so
-#	@echo '---------------------------'
-#	@echo $(MKLROOT)
-#	@echo '---------------------------'
-
 
 dirs:
 	mkdir -p obj/liomods obj
+	mkdir mod
 
 liblio-g2g.so: dirs $(GARCHA_OBJ:%.o=obj/%.o)
 	ifort -shared -fPIC -o $@ $(GARCHA_OBJ:%.o=obj/%.o) $(LIBS)
@@ -182,6 +185,11 @@ obj/intsol.o: intsol.f
 .PHONY: obj/mathsubs.o
 obj/mathsubs.o:
 	cd mathsubs; $(MAKE) --no-print-directory
+
+.PHONY: obj/maskrmm.o
+obj/maskrmm.o:
+	cd maskrmm; $(MAKE) --no-print-directory
+
 
 ### Objects
 obj/%.o: %.f

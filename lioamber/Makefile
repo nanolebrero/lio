@@ -1,6 +1,6 @@
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#
+######################################################################
 # LIBLIO MAKEFILE
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#
+######################################################################
 #MODS_PATH = mod/
 #GETMODS  = -I/$(MODS_PATH)
 #PUTMODS  = -J/$(MODS_PATH)
@@ -13,14 +13,12 @@
 MODS_PATH =
 
 # LIBS BASIC
-#--------------------------------------------------------------------#
 LIBS_PATH =
 LIBS_PATH += -L../g2g -L/usr/lib -L/usr/lib64
 LIBS_LIBS += -lg2g -lstdc++
 
 
 # MKL LIBS AND MODS
-#--------------------------------------------------------------------#
 LIBS_PATH += -L$(MKLROOT)/lib/intel64 -I$(MKLROOT)/include
 LIBS_LIBS += -lmkl_lapack95_lp64
 LIBS_LIBS += -lmkl_intel_lp64
@@ -28,14 +26,13 @@ LIBS_LIBS += -lmkl_intel_thread
 LIBS_LIBS += -lmkl_core
 
 # LIBS EXTRAS & JOIN ALL
-#--------------------------------------------------------------------#
 LIBS_MOAR = -liomp5 -lpthread -lm -Wl,-rpath='$$ORIGIN/' -Wl,-rpath='$$ORIGIN/../g2g'
 
 LIBS = $(LIBS_PATH) $(PROFILE) $(LIBS_LIBS) $(LIBS_MOAR)
 #
 #
 #
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#
+######################################################################
 # OLD PARTS
 #--------------------------------------------------------------------#
 # sources and objects
@@ -47,14 +44,12 @@ MOD_OBJ=$(MOD_SRCS:%.f=%.o)
 GARCHA_OBJ = mathsubs.o maskrmm.o
 GARCHA_OBJ += $(MOD_OBJ) $(COMMON_SRCS:%.f=%.o) $(GARCHA_SRCS:%.f=%.o)
 
-#--------------------------------------------------------------------#
 # THE OLD WAY TO LIBS
 #LIBS=-L/usr/lib -L/usr/lib64 -L../g2g -lg2g -lstdc++ \
       -L$(MKLROOT)/lib/intel64 -I$(MKLROOT)/include $(PROFILE) \
       -lmkl_lapack95_lp64 -Wl,--start-group -lmkl_intel_lp64 \
       -lmkl_intel_thread -lmkl_core -Wl,--end-group -liomp5 -lpthread \
       -lm -Wl,-rpath='$$ORIGIN/' -Wl,-rpath='$$ORIGIN/../g2g'
-#--------------------------------------------------------------------#
 
 
 # flags
@@ -127,7 +122,7 @@ all: dirs liblio-g2g.so
 
 dirs:
 	mkdir -p obj/liomods obj
-	mkdir mod
+	mkdir -p mod
 
 liblio-g2g.so: dirs $(GARCHA_OBJ:%.o=obj/%.o)
 	ifort -shared -fPIC -o $@ $(GARCHA_OBJ:%.o=obj/%.o) $(LIBS)
@@ -195,4 +190,4 @@ obj/maskrmm.o:
 obj/%.o: %.f
 	ifort -o $@ $(CFLAGS) $(G2G_CFLAGS) $<
 
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#
+######################################################################

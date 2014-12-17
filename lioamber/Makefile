@@ -1,31 +1,44 @@
 ######################################################################
 # LIBLIO MAKEFILE
 ######################################################################
-#MODS_PATH = mod/
-#GETMODS  = -I/$(MODS_PATH)
-#PUTMODS  = -J/$(MODS_PATH)
+#
+#
+#
+#
+######################################################################
+all: liblio-g2g.so
 
-#BASEMODS_F = $(wildcard liomods/*.f)
-#BASEMODS_O = $(BASEMODS_F:%.f=%.o)
+mod_path  := mod
+obj_path  := obj
+src_paths := liomods maskrmm mathsubs
+vpath %.mod $(mod_path)
+vpath %.o   $(obj_path)
+vpath %.f   $(src_paths)
 
-#MODULES += mathsubs.mod
-#MODULES += maskrmm.mod
-MODS_PATH =
+# Flags
+FC     = ifort
+FFLAGS =
+FFLAGS += -g -module $(mod_path)
+FFLAGS += $(DEFINE) $(PROFILE)
+DEFINE += -Dpack -fPIC
 
-# LIBS BASIC
+
+
+
+# Libraries
 LIBS_PATH =
 LIBS_PATH += -L../g2g -L/usr/lib -L/usr/lib64
 LIBS_LIBS += -lg2g -lstdc++
 
 
-# MKL LIBS AND MODS
+# MKL libs and mods
 LIBS_PATH += -L$(MKLROOT)/lib/intel64 -I$(MKLROOT)/include
 LIBS_LIBS += -lmkl_lapack95_lp64
 LIBS_LIBS += -lmkl_intel_lp64
 LIBS_LIBS += -lmkl_intel_thread
 LIBS_LIBS += -lmkl_core
 
-# LIBS EXTRAS & JOIN ALL
+
 LIBS_MOAR = -liomp5 -lpthread -lm -Wl,-rpath='$$ORIGIN/' -Wl,-rpath='$$ORIGIN/../g2g'
 
 LIBS = $(LIBS_PATH) $(PROFILE) $(LIBS_LIBS) $(LIBS_MOAR)
@@ -33,62 +46,17 @@ LIBS = $(LIBS_PATH) $(PROFILE) $(LIBS_LIBS) $(LIBS_MOAR)
 #
 #
 ######################################################################
-# OLD PARTS
-#--------------------------------------------------------------------#
-# sources and objects
-MOD_SRCS=$(wildcard liomods/*.f)
-# COMMON_SRCS=$(wildcard *.f)
-GARCHA_SRCS=$(wildcard *.f)
 
-MOD_OBJ=$(MOD_SRCS:%.f=%.o)
-GARCHA_OBJ = mathsubs.o maskrmm.o
-GARCHA_OBJ += $(MOD_OBJ) $(COMMON_SRCS:%.f=%.o) $(GARCHA_SRCS:%.f=%.o)
-
-# THE OLD WAY TO LIBS
-#LIBS=-L/usr/lib -L/usr/lib64 -L../g2g -lg2g -lstdc++ \
-      -L$(MKLROOT)/lib/intel64 -I$(MKLROOT)/include $(PROFILE) \
-      -lmkl_lapack95_lp64 -Wl,--start-group -lmkl_intel_lp64 \
-      -lmkl_intel_thread -lmkl_core -Wl,--end-group -liomp5 -lpthread \
-      -lm -Wl,-rpath='$$ORIGIN/' -Wl,-rpath='$$ORIGIN/../g2g'
-
-
-# flags
-ifeq ($(print), 1)
-  DEFINE += -DPRINT_MATRICES
-endif
-
-ifeq ($(profile),1)
-  PROFILE  = -pg
-else
-  PROFILE  =
-endif
-
-ifeq ($(cpu_recompute),0)
-  CXXFLAGS += -DCPU_RECOMPUTE=0
-else
-  CXXFLAGS += -DCPU_RECOMPUTE=1
-endif
-
-ifeq ($(full_double),1)
-  CXXFLAGS += -DFULL_DOUBLE=1
-  NVCCFLAGS += -DFULL_DOUBLE=1
-else
-  CXXFLAGS += -DFULL_DOUBLE=0
-  NVCCFLAGS += -DFULL_DOUBLE=0
-endif
-
-DEFINE   += -Dpack -fPIC
-CFLAGS   := -g -mp1 -ip -c -cpp  $(DEFINE) $(PROFILE)
-CFLAGS2  := -g $(OPTIMIZE) -c -cpp  $(DEFINE) $(PROFILE)
-CFLAGS3  := -g $(OPTIMIZE) -c -cpp -parallel   $(DEFINE) $(PROFILE)
-CPPFLAGS := -P $(OPTIMIZE) -traditional-cpp
+CFLAGS   := -mp1 -ip -cpp  $(DEFINE) $(PROFILE)
+CFLAGS2  := $(OPTIMIZE) -cpp  $(DEFINE) $(PROFILE)
+CFLAGS3  := $(OPTIMIZE) -cpp -parallel   $(DEFINE) $(PROFILE)
 
 ifeq ($(non_optimize),1)
-  CFLAGS += -O0
+  CFLAGS  += -O0
   CFLAGS2 += -O0
   CFLAGS3 += -O0
 else
-  CFLAGS += -O3
+  CFLAGS  += -O3
   CFLAGS2 += -O1
   CFLAGS3 += -O3
 endif
@@ -98,30 +66,13 @@ ifeq ($(magma),1)
 	LIBS     += -L$(MAGMAROOT)/lib -lmagma
 endif
 
-#eliminada   -lmkl_solver_lp64
-
-# directories
-G2G_CFLAGS=-DG2G
-
-ifeq ($(ultima_garcha),1)
-	G2G_CFLAGS += -DULTIMA_GARCHA
-endif
-
-ifeq ($(convergencia_garcha),1)
-	G2G_CFLAGS += -DINT3N_GARCHA
-endif
-
-ifeq ($(ultima_g2g),1)
-	CFLAGS += -DULTIMA_G2G
-	CFLAGS2 += -DULTIMA_G2G
-endif
 
 ## Targets: make ##
 
 all: dirs liblio-g2g.so
 
 dirs:
-	mkdir -p obj/liomods obj
+	mkdir -p obj
 	mkdir -p mod
 
 liblio-g2g.so: dirs $(GARCHA_OBJ:%.o=obj/%.o)
@@ -177,17 +128,18 @@ obj/int3lu.o: int3lu.f
 obj/intsol.o: intsol.f
 	ifort -o $@ $(CFLAGS2) $(G2G_CFLAGS)  $<
 
-.PHONY: obj/mathsubs.o
-obj/mathsubs.o:
-	cd mathsubs; $(MAKE) --no-print-directory
+# Directories dependencies
+%.o   : | $(obj_path)
+%.mod : | $(mod_path)
+$(obj_path) $(mod_path) :
+	mkdir -p $@
 
-.PHONY: obj/maskrmm.o
-obj/maskrmm.o:
-	cd maskrmm; $(MAKE) --no-print-directory
+# Objects
+%.o: %.f
+	$(FC) $(FFLAGS) -c $< -o $(obj_path)/$@
 
-
-### Objects
-obj/%.o: %.f
-	ifort -o $@ $(CFLAGS) $(G2G_CFLAGS) $<
+.PHONY: clean
+clean:
+	rm -rf obj mod liblio-g2g.so
 
 ######################################################################

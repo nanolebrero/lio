@@ -1,6 +1,6 @@
 ######################################################################
 # INTERNAL DEPENDENCIES
-INCLUDES  =
+INCLUDES :=
 INCLUDES += spunpack.f sprepack.f
 INCLUDES += rhomess.f  rhomess_h.f
 INCLUDES += rhofix.f   rhofix_h.f

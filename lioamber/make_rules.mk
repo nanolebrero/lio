@@ -1,4 +1,7 @@
 ######################################################################
+# This make-asociated file contains rather generic rules and thus
+# should not be modificated under normal circumstances.
+######################################################################
 $(obj_path) :
 	mkdir -p $@
 

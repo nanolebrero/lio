@@ -9,6 +9,7 @@
        include 'gaussbell_h.f'
        include 'commutator_h.f'
        include 'basechange_h.f'
+       include 'matdist_h.f'
        contains
 !
 !
@@ -17,6 +18,7 @@
        include 'gaussbell.f'
        include 'commutator.f'
        include 'basechange.f'
+       include 'matdist.f'
        end module
 !
 !

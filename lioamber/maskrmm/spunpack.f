@@ -56,8 +56,8 @@
          ENDDO
 
        ELSE IF (UPLO.EQ.'L') THEN
-         DO ii=1,NM
-         DO jj=1,ii
+         DO jj=1,NM
+         DO ii=jj,NM
            idx=ii+(2*NM-jj)*(jj-1)/2
            Matrix(ii,jj)=Vector(idx)
            Matrix(jj,ii)=Vector(idx)

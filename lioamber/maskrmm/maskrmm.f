@@ -17,6 +17,8 @@
        include 'sprepack.f'
        include 'rhomess.f'
        include 'rhofix.f'
+       include 'rmmget.f'
+       include 'rmmput.f'
        end module
 !
 !

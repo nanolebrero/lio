@@ -49,15 +49,22 @@ objlist += dip.o dipmem.o drive.o grid.o init_amber.o init.o
 objlist += int1.o int2.o int3lu.o int3mem.o int3mems.o intfld.o intsol.o
 objlist += int1G.o int2G.o int3G.o intSG.o intsolG.o intsolGs.o
 objlist += jarz.o lio_finalize.o predictor.o SCF.o SCF_in.o SCFop.o
+objlist += maskrmm.o
 
 $(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/garcha_mod.o
 $(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/garcha_mod.mod
 ######################################################################
 # mathsubs
-objlist := SCF.o SCFop.o
+objlist := SCF.o SCFop.o TD.f
 
 $(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/mathsubs.o
 $(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/mathsubs.mod
+######################################################################
+# maskrmm
+objlist := SCF.o
+
+$(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/maskrmm.o
+$(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/maskrmm.mod
 ######################################################################
 # Custom flags
 myflags :=

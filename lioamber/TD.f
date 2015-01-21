@@ -62,7 +62,7 @@ c       USE latom
       parameter(sizeof_complex=16)
 #endif
       integer stat
-      integer*8 devPtrX, devPtrY,devPtrXc
+      integer*8 devPtrX, devPtrY,devPtrXc,devPtrS
       external CUBLAS_INIT, CUBLAS_SET_MATRIX
       external CUBLAS_SHUTDOWN, CUBLAS_ALLOC,CUBLAS_GET_MATRIX
       integer CUBLAS_ALLOC, CUBLAS_SET_MATRIX,CUBLAS_GET_MATRIX
@@ -82,7 +82,7 @@ c       USE latom
 ! Mulliken
        ipop=1
 ! Group of charges
-       groupcharge=.false.
+       groupcharge=.true.
 !!------------------------------------!!
 #ifdef CUBLAS
        write(*,*) 'USING CUBLAS'
@@ -284,6 +284,21 @@ c Initializations/Defaults
             if(ipop.eq.1)then
               allocate(overlap(M,M),rhoscratch(M,M))
               call spunpack('L',M,RMM(M5),overlap)
+#ifdef CUBLAS
+            stat = CUBLAS_ALLOC(M*M, sizeof_real, devPtrS)
+            if (stat.NE.0) then
+               write(*,*) "S memory allocation failed"
+               call CUBLAS_SHUTDOWN
+               stop
+            endif
+            stat=CUBLAS_SET_MATRIX(M,M,sizeof_real,overlap,M,devPtrS,M)
+            if (stat.NE.0) then
+               write(*,*) "S matrix setting failed"
+               call CUBLAS_SHUTDOWN
+               stop
+            endif
+            deallocate(overlap)
+#endif
             endif
 !--------------------------------------!
 c Diagonalization of S matrix, after this is not needed anymore
@@ -403,7 +418,7 @@ c s is in RMM(M13,M13+1,M13+2,...,M13+MM)
             call int3mems()
             call g2g_timer_stop('int3mmem')
 !------------------------------------------------------------------------------!
-            deallocate(y)
+!            deallocate(y)
 #ifdef CUBLAS
             call CUBLAS_FREE(devPtrY)
 #endif
@@ -455,7 +470,7 @@ c ELECTRIC FIELD CASE - Type=gaussian (ON)
 !                 call dip2(g,Fxx,Fyy,Fzz)
 !                 E1=-1.00D0*g*(Fx*ux+Fy*uy+Fz*uz)/fac -
 !     >           0.50D0*(1.0D0-1.0D0/epsilon)*Qc2/a0
-                 call efield(istep,fxx,fyy,fzz)
+                 call efield(istep,fxx,fyy,fzz,'INITDUMP')
                  if((istep.gt.pert_steps).and.(fxx.eq.0.0D0).and.
      >           (fyy.eq.0.0D0).and.(fzz.eq.0.0D0)) field=.false.
               endif
@@ -674,100 +689,122 @@ c The real part of the density matrix in the atomic orbital basis is copied in R
               endif
 !###################################################################!
 !# DIPOLE MOMENT CALCULATION
-!              if(istep.eq.1) then
-!                open(unit=134,file='x.dip')
-!                open(unit=135,file='y.dip')
-!                open(unit=136,file='z.dip')
-!        write(134,*) '#Time (fs) vs DIPOLE MOMENT, X COMPONENT (DEBYES)'
-!        write(135,*) '#Time (fs) vs DIPOLE MOMENT, Y COMPONENT (DEBYES)'
-!        write(136,*) '#Time (fs) vs DIPOLE MOMENT, Z COMPONENT (DEBYES)'
-!              endif
-!              if ((propagator.eq.2).and.(istep.lt.lpfrg_steps)
-!     >      .and. (.not.tdrestart)) then
-!                  if(mod ((istep-1),10) == 0) then
-!                     call g2g_timer_start('DIPOLE') 
-!                     call dip(ux,uy,uz)
-!                     call g2g_timer_stop('DIPOLE')
-!                     write(134,901) t,ux
-!                     write(135,901) t,uy
-!                     write(136,901) t,uz
-!                  endif
-!              else
-!                  call g2g_timer_start('DIPOLE')
-!                  call dip(ux,uy,uz)
-!                  call g2g_timer_stop('DIPOLE')
-!                  write(134,901) t,ux
-!                  write(135,901) t,uy
-!                  write(136,901) t,uz
-!              endif
+              if(istep.eq.1) then
+                open(unit=134,file='x.dip')
+                open(unit=135,file='y.dip')
+                open(unit=136,file='z.dip')
+        write(134,*) '#Time (fs) vs DIPOLE MOMENT, X COMPONENT (DEBYES)'
+        write(135,*) '#Time (fs) vs DIPOLE MOMENT, Y COMPONENT (DEBYES)'
+        write(136,*) '#Time (fs) vs DIPOLE MOMENT, Z COMPONENT (DEBYES)'
+             endif
+              if ((propagator.eq.2).and.(istep.lt.lpfrg_steps)
+     >      .and. (.not.tdrestart)) then
+                  if(mod ((istep-1),10) == 0) then
+                     call g2g_timer_start('DIPOLE') 
+                     call dip(ux,uy,uz)
+                     call g2g_timer_stop('DIPOLE')
+                     write(134,901) t,ux
+                     write(135,901) t,uy
+                     write(136,901) t,uz
+                  endif
+              else
+                  call g2g_timer_start('DIPOLE')
+                  call dip(ux,uy,uz)
+                  call g2g_timer_stop('DIPOLE')
+                  write(134,901) t,ux
+                  write(135,901) t,uy
+                  write(136,901) t,uz
+              endif
 !c u in Debyes
 !# END OF DIPOLE MOMENT CALCULATION
 c-------------------------MULLIKEN CHARGES-----------------------------------------------!
-!                if(istep.eq.1) then
-!                  open(unit=1111111,file='Mulliken')
-!                  if (groupcharge) then
-!                      open(unit=678,file='Mullikin')
-!                      allocate(group(natom))
-!                      ngroup=0
-!                      do n=1,natom
-!                        read(678,*) kk
-!                        group(n)=kk
-!                        if (kk.gt.ngroup) ngroup=kk
-!                      enddo
-!                      allocate(qgr(ngroup))
-!                      close(unit=678)
-!                      open(unit=678,file='MullikenGroup')
-!                  endif
-!                endif
-!
-!              if ((propagator.eq.2).and.(istep.lt.lpfrg_steps)
-!     >      .and. (.not.tdrestart)) then
-!                if(mod ((istep-1),10) == 0) then
-!                   rhoscratch=REAL(rho1)
-!                   rhoscratch=matmul(overlap,rhoscratch)
-!                   do n=1,natom
-!                      q(n)=Iz(n)
-!                   enddo
-!                   do i=1,M
-!                      q(Nuc(i))=q(Nuc(i))-rhoscratch(i,i)
-!                   enddo
-!                   if(groupcharge) qgr=0.0d0
-!                   do n=1,natom
-!                      write(1111111,760) n,Iz(n),q(n)
-!                      if(groupcharge) then
-!                        qgr(group(n))=qgr(group(n))+q(n)
-!                      endif
-!                   enddo
-!                   if(groupcharge) then
-!                    do n=1,ngroup
-!                       write(678,761) n,n,qgr(n)
-!                    enddo
-!                    write(678,*) '------------------------------------'
-!                   endif
-!                 endif
-!              else
-!                 rhoscratch=REAL(rho1)
-!                 rhoscratch=matmul(overlap,rhoscratch)
-!                 do n=1,natom
-!                    q(n)=Iz(n)
-!                 enddo
-!                 do i=1,M
-!                    q(Nuc(i))=q(Nuc(i))-rhoscratch(i,i)
-!                 enddo
-!                 if(groupcharge) qgr=0.0d0
-!                 do n=1,natom
-!                    write(1111111,760) n,Iz(n),q(n)
-!                    if(groupcharge) then
-!                       qgr(group(n))=qgr(group(n))+q(n)
-!                    endif
-!                 enddo
-!                 if(groupcharge) then
-!                   do n=1,ngroup
-!                       write(678,761) n,n,qgr(n)
-!                   enddo
-!                 endif
-!                 write(678,*) '------------------------------------'
-!              endif
+                if(istep.eq.1) then
+                   open(unit=1111111,file='Mulliken')
+                   if (groupcharge) then
+                      inquire(file='atomgroup',exist=exists)
+                      if (.not.exists) then
+                         write(*,*) 'ERROR CANNOT FIND atomgroup file'
+                         write(*,*) '(if you are not restarting a previ
+     >ous run set tdrestart= false)'
+                         stop
+                      endif
+                      open(unit=678,file='atomgroup')
+                      allocate(group(natom))
+                      ngroup=0
+                      do n=1,natom
+                        read(678,*) kk
+                        group(n)=kk
+                        if (kk.gt.ngroup) ngroup=kk
+                      enddo
+                      allocate(qgr(ngroup))
+                      close(unit=678)
+                      open(unit=678,file='MullikenGroup')
+                  endif
+                endif
+                if ((propagator.eq.2).and.(istep.lt.lpfrg_steps)
+     >          .and. (.not.tdrestart)) then
+                      if(mod ((istep-1),10) == 0) then
+                         rhoscratch=REAL(rho1)
+#ifdef CUBLAS
+                         call g2g_timer_start('Mulliken charges - cu -')
+                         call cumsp_r(rhoscratch,devPtrS,rhoscratch,M)
+                         call g2g_timer_stop('Mulliken charges - cu -')
+#else
+                         call g2g_timer_start('Mulliken charges')
+                         rhoscratch=matmul(overlap,rhoscratch)
+                         call g2g_timer_stop('Mulliken charges')
+#endif
+                         do n=1,natom
+                            q(n)=Iz(n)
+                         enddo
+                         do i=1,M
+                            q(Nuc(i))=q(Nuc(i))-rhoscratch(i,i)
+                         enddo
+                         if(groupcharge) qgr=0.0d0
+                         do n=1,natom
+                            write(1111111,760) n,Iz(n),q(n)
+                            if(groupcharge) then
+                               qgr(group(n))=qgr(group(n))+q(n)
+                            endif
+                         enddo
+                         if(groupcharge) then
+                             do n=1,ngroup
+                                write(678,761) n,n,qgr(n)
+                             enddo
+                             write(678,*) '-------------------------'
+                         endif
+                      endif
+                   else
+                   rhoscratch=REAL(rho1)
+#ifdef CUBLAS
+                         call g2g_timer_start('Mulliken charges - cu -')
+                         call cumsp_r(rhoscratch,devPtrS,rhoscratch,M)
+                         call g2g_timer_stop('Mulliken charges - cu -')
+#else
+                         call g2g_timer_start('Mulliken charges')
+                         rhoscratch=matmul(overlap,rhoscratch)
+                         call g2g_timer_stop('Mulliken charges')
+#endif
+                   do n=1,natom
+                      q(n)=Iz(n)
+                   enddo
+                   do i=1,M
+                      q(Nuc(i))=q(Nuc(i))-rhoscratch(i,i)
+                   enddo
+                   if(groupcharge) qgr=0.0d0
+                   do n=1,natom
+                      write(1111111,760) n,Iz(n),q(n)
+                      if(groupcharge) then
+                         qgr(group(n))=qgr(group(n))+q(n)
+                      endif
+                   enddo
+                   if(groupcharge) then
+                      do n=1,ngroup
+                         write(678,761) n,n,qgr(n)
+                      enddo
+                   endif
+                 write(678,*) '------------------------------------'
+               endif
 !!-----------------------------------------------------------------------------------!
 
                call g2g_timer_stop('TD step')
@@ -783,6 +820,9 @@ c
 c
 #ifdef CUBLAS
          call CUBLAS_FREE ( devPtrX )
+         call CUBLAS_FREE ( devPtrS )
+#else
+         if(ipop.eq.1) deallocate(overlap) 
 #endif
          if (memo) then
             deallocate (kkind,kkinds)

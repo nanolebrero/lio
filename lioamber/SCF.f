@@ -38,6 +38,9 @@ c       REAL*8 , intent(in)  :: clcoords(4,nsolin)
         external CUBLAS_SHUTDOWN, CUBLAS_ALLOC
         integer CUBLAS_ALLOC, CUBLAS_SET_MATRIX
 #endif
+!! LIOPATH
+        CHARACTER(LEN=8)   :: FIELDTYPE
+!        FIELDTYPE='INITDUMP'
 !!
       call g2g_timer_start('SCF')
       just_int3n = .false.
@@ -449,13 +452,14 @@ c-------------------------------------------------------
       E1=0.0D0
 c
 c REACTION FIELD CASE --------------------------------------------
-c
-        call g2g_timer_start('actualiza rmm')
-c----------------------------------------------------------------
+        IF((FIELDTYPE.EQ.'INITDUMP').or.(FIELDTYPE.EQ.'INITSTAT')) THEN
+           call efield(1,fxx,fyy,fzz,'SELFCONS')
+        ELSE
 c E1 includes solvent 1 electron contributions
-        do 303 k=1,MM
- 303     E1=E1+RMM(k)*RMM(M11+k-1)
-
+           do 303 k=1,MM
+ 303            E1=E1+RMM(k)*RMM(M11+k-1)
+        ENDIF
+        call g2g_timer_start('actualiza rmm')
 c
 c
 c now, we know S matrix, and F matrix, and E for a given P

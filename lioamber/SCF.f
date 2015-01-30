@@ -453,7 +453,7 @@ c-------------------------------------------------------
 c
 c REACTION FIELD CASE --------------------------------------------
         IF((FIELDTYPE.EQ.'INITDUMP').or.(FIELDTYPE.EQ.'INITSTAT')) THEN
-           call efield(1,fxx,fyy,fzz,'SELFCONS')
+           call EFIELD(istep,fxx,fyy,fzz,'SELFCONS',E1,M11,MM)
         ELSE
 c E1 includes solvent 1 electron contributions
            do 303 k=1,MM

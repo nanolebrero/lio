@@ -470,15 +470,16 @@ c ELECTRIC FIELD CASE - Type=gaussian (ON)
 !                 call dip2(g,Fxx,Fyy,Fzz)
 !                 E1=-1.00D0*g*(Fx*ux+Fy*uy+Fz*uz)/fac -
 !     >           0.50D0*(1.0D0-1.0D0/epsilon)*Qc2/a0
-                 call efield(istep,fxx,fyy,fzz,'INITDUMP')
+                 call EFIELD(istep,fxx,fyy,fzz,'INITDUMP',E1,M11,MM)
                  if((istep.gt.pert_steps).and.(fxx.eq.0.0D0).and.
      >           (fyy.eq.0.0D0).and.(fzz.eq.0.0D0)) field=.false.
-              endif
+              else
 !------------------------------------------------------------------------------!
 ! E1 includes solvent 1 electron contributions
-            do k=1,MM
-              E1=E1+RMM(k)*RMM(M11+k-1)
-            enddo
+                  do k=1,MM
+                     E1=E1+RMM(k)*RMM(M11+k-1)
+                  enddo
+              endif
 !        write(*,*) '1 electron contribution',E1
 !------------------------------------------------------------------------------!
 ! Here we obtain the fock matrix in the molecular orbital (MO) basis.

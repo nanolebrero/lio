@@ -42,6 +42,7 @@ objects += sysdata.o
 objects += mathsubs.o
 objects += maskrmm.o
 objects += density.o
+objects += transport.o
 ifeq ($(cublas),1)
 objects += cublasmath.o 
 endif
@@ -68,7 +69,7 @@ $(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/garcha_mod.mod
 
 
 # mathsubs
-objlist := SCF.o SCFop.o
+objlist := SCF.o SCFop.o transport.f
 $(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/mathsubs.mod
 
 ifeq ($(cublas),1)
@@ -76,7 +77,7 @@ ifeq ($(cublas),1)
 objlist := cublasmath.o
 $(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/garcha_mod.mod
 
-objlist := SCF.o SCFop.o TD.o
+objlist := SCF.o SCFop.o TD.o transport.f
 $(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/cublasmath.mod
 endif
 

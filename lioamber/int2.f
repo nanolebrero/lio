@@ -541,7 +541,8 @@ c      deallocate(dgelss_temp)
 c
 #endif
        if (ss.gt.1.D14) then
-        SVD=.true.
+         stop 'Problems with auxiliary basis set'
+!        SVD=.true.
        endif
 
       call g2g_timer_sum_stop('G condition')

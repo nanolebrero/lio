@@ -26,7 +26,7 @@
        COMPLEX*16,ALLOCATABLE,DIMENSION(:,:) :: Omega1
        COMPLEX*16,INTENT(IN)              :: RhoOld(M,M)
        COMPLEX*16,INTENT(OUT)                :: RhoNew(M,M)
-       COMPLEX*16,PARAMETER :: icmplx=CMPLX(0.0D0,1.0D0)
+       COMPLEX*16,PARAMETER :: icmplx=DCMPLX(0.0D0,1.0D0)
        INTEGER, PARAMETER :: sizeof_complex=16
        INTEGER CUBLAS_ZGEMM,CUBLAS_ZAXPY,CUBLAS_INIT,CUBLAS_ZCOPY
 !------------------------------------------------------------------------------!
@@ -73,7 +73,7 @@
        alpha=(1.0D0,0.0D0)
        DO ii=1,N
          Fact=factorial(ii)
-         alpha=CMPLX(Fact,0.0D0)
+         alpha=DCMPLX(Fact,0.0D0)
          beta=(1.0D0,0.0D0)
          stat=CUBLAS_ZGEMM('N','N',M,M,M,
      >        alpha,devPPrev,M,devPOmega,M,
@@ -90,7 +90,7 @@
       endif
 !======================================!
          Fact=(-1.0D0)*Fact
-         alpha=CMPLX(Fact,0.0D0)
+         alpha=DCMPLX(Fact,0.0D0)
          stat=CUBLAS_ZGEMM('N','N',M,M,M,
      >        alpha,devPOmega,M,devPPrev,M,
      >        beta,devPNext,M)

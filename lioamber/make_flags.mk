@@ -76,12 +76,12 @@ $(objlist:%.o=$(obj_path)/%.o) : optim:=$(optim1)
 
 objlist := matmuldiag.o int3lu.o fock_commuts.o
 objlist := SCF.o TD.o ehrenfest.o magnus.o predictor.o
-objlist += FixMessRho.o get_unit.o mulliken.o PackedStorage.f
+objlist += FixMessRho.o get_unit.o mulliken.o PackedStorage..o
 objlist += init_amber.o init.o lio_init.o liomain.o lio_finalize.o
 objlist += dft_get_mm_forces.o dft_get_qm_forces.o
 objlist += alg.o drive.o func.o grid.o dipmem.o jarz.o
 objlist += int1.o int2.o int2G.o int3mem.o intSG.o
-objlist += garcha_mod.o mathsubs.o cubegen.o density.o
+objlist += garcha_mod.o mathsubs.o cubegen.o density.o transport.o
 ifeq ($(cublas),1)
 objlist += cublasmath.o 
 endif
@@ -104,12 +104,12 @@ ifeq ($(ifort),1)
   #$(objlist:%.o=$(obj_path)/%.o) : private myflags+=-parallel
 
   objlist := SCF.o TD.o ehrenfest.o magnus.o predictor.o
-  objlist += FixMessRho.o get_unit.o mulliken.o PackedStorage.f
+  objlist += FixMessRho.o get_unit.o mulliken.o PackedStorage.o
   objlist += init_amber.o init.o lio_init.o liomain.o lio_finalize.o
   objlist += dft_get_mm_forces.o dft_get_qm_forces.o
   objlist += alg.o drive.o func.o grid.o dipmem.o jarz.o
   objlist += int1.o int2.o int2G.o int3mem.o  intSG.o
-  objlist += garcha_mod.o cubegen.o density.o
+  objlist += garcha_mod.o cubegen.o density.o transport.o
   $(objlist:%.o=$(obj_path)/%.o) : myflags:=-mp1 -ip
   #$(objlist:%.o=$(obj_path)/%.o) : private myflags+=$(optim3) -mp1 -ip
 endif

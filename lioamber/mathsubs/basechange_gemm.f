@@ -40,13 +40,13 @@
        integer                :: i,j
 !
        allocate(Matm(M,M),Mato(M,M),Cmat(M,M))
-       Matm=DCMPLX(0,0)
-       Mato=DCMPLX(0,0)
+       Matm=CMPLX(0,0)
+       Mato=CMPLX(0,0)
        alpha=cmplx(1.0D0,0.0D0)
        beta=cmplx(0.0D0,0.0D0)
        DO i=1,M
           DO j=1,M
-             Cmat(i,j)=cmplx(Umat(i,j),0.0D0)
+             Cmat(i,j)=cmplx(Umat(i,j),0.0D0,16)
           ENDDO
        ENDDO
 !
@@ -70,11 +70,11 @@
        allocate(Matm(M,M),Mato(M,M),Cmat(M,M))
        Matm=DCMPLX(0,0)
        Mato=DCMPLX(0,0)
-       alpha=cmplx(1.0D0,0.0D0)
-       beta=cmplx(0.0D0,0.0D0)
+       alpha=dcmplx(1.0D0,0.0D0)
+       beta=dcmplx(0.0D0,0.0D0)
        DO i=1,M
           DO j=1,M
-             Cmat(i,j)=cmplx(Umat(i,j),0.0D0)
+             Cmat(i,j)=dcmplx(Umat(i,j),0.0D0)
           ENDDO
        ENDDO
 !

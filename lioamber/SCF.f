@@ -71,8 +71,8 @@ c
       Ndens=1
 c---------------------
 c       write(*,*) 'M=',M
-      allocate (znano(M,M),xnano(M,M),scratch(M,M),scratch1(M,M))
-
+      allocate (znano(M,M),xnano(M,M),scratch(M,M),scratch1(M,M),
+     > fock(M,M))
       npas=npas+1
       E=0.0D0
       E1=0.0D0
@@ -567,7 +567,7 @@ c
       if (DIIS.and.alloqueo) then
         alloqueo=.false.
 c       write(*,*) 'eme=', M
-       allocate(rho1(M,M),rho(M,M),fock(M,M),fockm(MM,ndiis),
+       allocate(rho1(M,M),rho(M,M),fockm(MM,ndiis),
      >  FP_PFm(MM,ndiis),EMAT(ndiis+1,ndiis+1),bcoef(ndiis+1)
      >  ,suma(MM))
       endif
@@ -612,12 +612,29 @@ c-------------------------------------------------------
 c
 c REACTION FIELD CASE --------------------------------------------
 c
+        IF(FIELD) THEN
+            call dip(ux,uy,uz)
+            write(*,*) 'ux,uy,uz =', ux,uy,uz
+!            fxx=fx
+!            fyy=fy
+!            fzz=fz
+            g=1.0D0
+            factor=2.54D0
+            call intfld(g,Fx,Fy,Fz)
+!           E1=-1.0D0*g*(Fxx*ux+Fyy*uy+Fzz*uz)/fac 
+!           E1=E1-0.50D0*(1.0D0-1.0D0/epsilon)*Qc2/a0
+            E1=-1.00D0*g*(Fx*ux+Fy*uy+Fz*uz)/factor -
+     >      0.50D0*(1.0D0-1.0D0/epsilon)*Qc2/a0
+            do k=1,MM
+               E1=E1+RMM(k)*RMM(M11+k-1)
+            enddo
+        ELSE
+c E1 includes solvent 1 electron contributions
+            do 303 k=1,MM
+ 303             E1=E1+RMM(k)*RMM(M11+k-1)
+        ENDIF
         call g2g_timer_start('actualiza rmm')
 c----------------------------------------------------------------
-c E1 includes solvent 1 electron contributions
-        do k=1,MM
-          E1=E1+RMM(k)*RMM(M11+k-1)
-        enddo
         call g2g_timer_sum_pause('Fock integrals')
         call g2g_timer_sum_start('SCF acceleration')
 c
@@ -752,11 +769,11 @@ c-------------------------------------------------------------------------------
 c the newly constructed damped matrix is stored, for next iteration
 c in RMM(M3)
 c
-!         do k=1,MM
-!            kk=M5+k-1
-!            kk2=M3+k-1
-!            RMM(kk2)=RMM(kk)
-!          enddo
+         do k=1,MM
+            kk=M5+k-1
+            kk2=M3+k-1
+            RMM(kk2)=RMM(kk)
+         enddo
 c
 ! xnano=X^T
 !          do i=1,M
@@ -1170,7 +1187,7 @@ c-------------------------------------------------------------------
 c      old3=old2
 
 c      old2=old1
-c        write(*,*) 'good final',good
+        write(*,*) 'good',good
 
 c      do i=1,MM
 c        old1(i)=RMM(i)

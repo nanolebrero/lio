@@ -25,6 +25,7 @@
       logical dens1,integ1,sol1,free,free1, field, extern
 
       logical tdrestart, writedens
+      logical write_density_cube
 
 
       dimension OCC(40),oc2(400),ATCOEF(100*ng0),ighost(ntq),

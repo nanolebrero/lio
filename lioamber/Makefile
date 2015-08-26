@@ -28,98 +28,6 @@ makefiles += make_flags.mk
 # external libraries that are to be linked to LIO.
 makefiles += make_links.mk
 
-#
-<<<<<<< HEAD
-#
-#
-#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%#
-# OLD PARTS
-#--------------------------------------------------------------------#
-# sources and objects
-MOD_SRCS=$(wildcard mods/*.f)
-# COMMON_SRCS=$(wildcard *.f)
-GARCHA_SRCS=$(wildcard *.f)
-
-MOD_OBJ=$(MOD_SRCS:%.f=%.o)
-GARCHA_OBJ = #auxsubs.o
-GARCHA_OBJ += $(MOD_OBJ) $(COMMON_SRCS:%.f=%.o) $(GARCHA_SRCS:%.f=%.o)
-
-#--------------------------------------------------------------------#
-# THE OLD WAY TO LIBS
-#LIBS=-L/usr/lib -L/usr/lib64 -L../g2g -lg2g -lstdc++ \
-      -L$(MKLROOT)/lib/intel64 -I$(MKLROOT)/include $(PROFILE) \
-      -lmkl_lapack95_lp64 -Wl,--start-group -lmkl_intel_lp64 \
-      -lmkl_intel_thread -lmkl_core -Wl,--end-group -liomp5 -lpthread \
-      -lm -Wl,-rpath='$$ORIGIN/' -Wl,-rpath='$$ORIGIN/../g2g'
-#--------------------------------------------------------------------#
-
-
-# flags
-ifeq ($(print), 1)
-        DEFINE += -DPRINT_MATRICES
-endif
-
-ifeq ($(profile),1)
-  PROFILE  = -pg
-else
-  PROFILE  =
-endif
-
-ifeq ($(cpu_recompute),0)
-  CXXFLAGS += -DCPU_RECOMPUTE=0
-else
-  CXXFLAGS += -DCPU_RECOMPUTE=1
-endif
-
-ifeq ($(full_double),1)
-  CXXFLAGS += -DFULL_DOUBLE=1
-  NVCCFLAGS += -DFULL_DOUBLE=1
-else
-  CXXFLAGS += -DFULL_DOUBLE=0
-  NVCCFLAGS += -DFULL_DOUBLE=0
-endif
-
-DEFINE   += -Dpack -fPIC
-CFLAGS   = -g -mp1 -ip -O3 -c -cpp  $(DEFINE) $(PROFILE)
-CFLAGS2  = -g -O1 -c -cpp  $(DEFINE) $(PROFILE)
-CFLAGS3  = -g -O3 -c -cpp -parallel   $(DEFINE) $(PROFILE)
-CPPFLAGS = -P -traditional-cpp
-
-ifeq ($(magma),1)
-	DEFINE   += -Dmagma
-	LIBS     += -L$(MAGMAROOT)/lib -lmagma
-endif
-
-#eliminada   -lmkl_solver_lp64
-
-ifeq ($(debug),1)
-        DBUG = -g -O0 -debug all
-        CFLAGS = $(DBUG) -ip -c -cpp $(DEFINE)
-endif
-
-# directories
-G2G_CFLAGS=-DG2G
-
-ifeq ($(ultima_garcha),1)
-	G2G_CFLAGS += -DULTIMA_GARCHA
-endif
-
-ifeq ($(convergencia_garcha),1)
-	G2G_CFLAGS += -DINT3N_GARCHA
-endif
-
-ifeq ($(ultima_g2g),1)
-	CFLAGS += -DULTIMA_G2G
-	CFLAGS2 += -DULTIMA_G2G
-endif
-
-## Targets: make ##
-
-all: dirs liblio-g2g.so
-#	@echo '---------------------------'
-#	@echo $(MKLROOT)
-#	@echo '---------------------------'
-=======
 ######################################################################
 
 # This indicates the main target.
@@ -153,7 +61,6 @@ LFLAGS =
 #LIBS   =
 include make_flags.mk
 include make_links.mk
->>>>>>> 7d06646cb1333889dc332b2c15ba48ac06d0dcde
 
 #
 ######################################################################

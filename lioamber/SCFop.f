@@ -8,15 +8,10 @@ c Dario Estrin, 1992
 c Modified by
 c Nano and Will 2014 (nanolebrero@gmail.com , wagudelos@gmail.com)
 c---------------------------------------------------
-      subroutine SCFOP(E,dipxyz)
+      subroutine SCFOP(E,dipxyz,nstep)
       use garcha_mod
-<<<<<<< HEAD
-      implicit real*8 (a-h,o-z)
-      REAL*8:: En,E2,E,Es,Ex,Exc,E1
-=======
       use mathsubs
-      REAL*8:: En,E2,E,Es,Ex,Exc
->>>>>>> 7d06646cb1333889dc332b2c15ba48ac06d0dcde
+      implicit real*8 (a-h,o-z)
 
       dimension q(natom),work(1000)
       real*8, dimension (:,:), ALLOCATABLE ::xnano,znano
@@ -174,6 +169,11 @@ c
       call int1(En)
 c
 c -- SOLVENT CASE --------------------------------------
+      if(nsol.gt.0) then
+        call g2g_timer_start('intsol')
+        call intsol(E1s,Ens,.true.)
+        call g2g_timer_stop('intsol')
+      endif
 c      if (sol) then
 c      call intsol(NORM,natom,Nsol,natsol,r,Nuc,Iz,M,Md,ncont,nshell,
 c     >            c,a,pc,RMM,E1s)
@@ -1082,7 +1082,7 @@ c-------------------------------------------------------------------
         write(6,*) 'NO CONVERGENCE AT ',NMAX,' ITERATIONS'
         noconverge=noconverge + 1
         converge=0
-        call write_struct() !escribe la estructura que no convigio
+c        call write_struct() !escribe la estructura que no convigio
       else
         write(6,*) 'CONVERGED AT',niter,'ITERATIONS'
         noconverge = 0
@@ -1093,6 +1093,21 @@ c-------------------------------------------------------------------
         write(6,*)  'stop fon not convergion 4 times'
         stop
       endif
+
+c
+c -- SOLVENT CASE --------------------------------------
+c      if (sol) then
+      call g2g_timer_start('intsol 2')
+      if(nsol.gt.0) then
+        call intsol(E1s,Ens,.false.)
+c        write(*,*) 'cosillas',E1s,Ens
+        call g2g_timer_stop('intsol 2')
+      endif
+c      call mmsol(natom,Nsol,natsol,Iz,pc,r,Em,Rm,Es)
+      Es=Es+E1s+Ens
+c     endif
+c--------------------------------------------------------------
+
 
 #ifdef G2G
 #ifdef ULTIMA_CPU

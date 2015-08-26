@@ -5,7 +5,8 @@
      > , writexyz_i, intsoldouble_i, DIIS_i, ndiis_i, dgtrig_i, Iexch_i
      > , integ_i, DENS_i , IGRID_i, IGRID2_i , timedep_i , tdstep_i 
      > , ntdstep_i, field_i, exter_i, a0_i, epsilon_i, Fx_i
-     > , Fy_i, Fz_i, NBCH_i, propagator_i, writedens_i, tdrestart_i)
+     > , Fy_i, Fz_i, NBCH_i, propagator_i, writedens_i, tdrestart_i
+     > , write_density_cube_i)
 
       use garcha_mod
 c      use qmmm_module, only : qmmm_struct,qmmm_nml
@@ -25,109 +26,109 @@ c      parameter (ngdDyn=850)
 
 
 c      include 'param'
-        integer , intent(in) :: charge, nclatom
-       integer , intent(in)  :: natomin
-         integer , intent(in)  :: Izin(natomin)
-       character(len=20) :: basis_i
-       character(len=20) :: output_i
-       character(len=20) :: fcoord_i
-         character(len=20) :: fmulliken_i
-       character(len=20) :: frestart_i
-       character(len=20) :: frestartin_i
-       logical :: verbose_i
-       logical :: OPEN_i
-       integer :: NMAX_i
-       integer :: NUNP_i
-       logical :: VCINP_i
-         real*8  :: GOLD_i
-       real*8  :: told_i
-       real*8  :: rmax_i
-       real*8  :: rmaxs_i
-       logical :: predcoef_i
-       integer :: idip_i
-       logical :: writexyz_i
-       logical :: intsoldouble_i
-       logical :: DIIS_i
-       integer :: ndiis_i
-       real*8  :: dgtrig_i
-       integer :: Iexch_i
-       logical :: integ_i
-       logical :: DENS_i
-       integer :: IGRID_i
-       integer :: IGRID2_i
-       integer :: timedep_i
-       logical :: field_i
-       logical :: exter_i
-       real*8  :: tdstep_i
-       integer  :: ntdstep_i
-       real*8  :: a0_i
-       real*8  :: epsilon_i
-       real*8  :: Fx_i
-       real*8  :: Fy_i
-       real*8  :: Fz_i
-       integer  :: NBCH_i
-       integer :: propagator_i
-       logical :: writedens_i
-       logical :: tdrestart_i
+      integer , intent(in) :: charge, nclatom
+      integer , intent(in)  :: natomin
+      integer , intent(in)  :: Izin(natomin)
+      character(len=20) :: basis_i
+      character(len=20) :: output_i
+      character(len=20) :: fcoord_i
+      character(len=20) :: fmulliken_i
+      character(len=20) :: frestart_i
+      character(len=20) :: frestartin_i
+      logical :: verbose_i
+      logical :: OPEN_i
+      integer :: NMAX_i
+      integer :: NUNP_i
+      logical :: VCINP_i
+      real*8  :: GOLD_i
+      real*8  :: told_i
+      real*8  :: rmax_i
+      real*8  :: rmaxs_i
+      logical :: predcoef_i
+      integer :: idip_i
+      logical :: writexyz_i
+      logical :: intsoldouble_i
+      logical :: DIIS_i
+      integer :: ndiis_i
+      real*8  :: dgtrig_i
+      integer :: Iexch_i
+      logical :: integ_i
+      logical :: DENS_i
+      integer :: IGRID_i
+      integer :: IGRID2_i
+      integer :: timedep_i
+      logical :: field_i
+      logical :: exter_i
+      real*8  :: tdstep_i
+      integer  :: ntdstep_i
+      real*8  :: a0_i
+      real*8  :: epsilon_i
+      real*8  :: Fx_i
+      real*8  :: Fy_i
+      real*8  :: Fz_i
+      integer  :: NBCH_i
+      integer :: propagator_i
+      logical :: writedens_i
+      logical :: tdrestart_i
+      logical :: write_density_cube_i
 
-
-       basis= basis_i
-       Output= output_i
-       fcoord=fcoord_i
-       fmulliken=fmulliken_i
-       frestart= frestart_i
-       frestartin=frestartin_i
-        verbose = verbose_i
-       OPEN=OPEN_i
-       NMAX= NMAX_i
-       NUNP=NUNP_i
-       VCINP=VCINP_i
-       GOLD=GOLD_i
-       told=told_i
-       rmax=rmax_i
-       rmaxs=rmaxs_i
-       predcoef=predcoef_i
-       idip=idip_i
-       writexyz=writexyz_i
-       intsoldouble= intsoldouble_i
-       DIIS=DIIS_i
-       ndiis=ndiis_i
-       dgtrig= dgtrig_i
-       Iexch=Iexch_i
-       integ=integ_i
-       DENS=DENS_i
-       IGRID=IGRID_i
-       IGRID2=IGRID2_i
-       timedep=timedep_i
-       field=field_i
-       exter=exter_i
-       tdstep=tdstep_i
-       ntdstep= ntdstep_i
-       a0=a0_i
-       epsilon=epsilon_i
-       Fx=Fx_i
-       Fy=Fy_i
-       Fz=Fz_i
-       NBCH=NBCH_i
-       propagator=propagator_i
-       writedens=writedens_i
-       tdrestart=tdrestart_i
-
+      basis= basis_i
+      Output= output_i
+      fcoord=fcoord_i
+      fmulliken=fmulliken_i
+      frestart= frestart_i
+      frestartin=frestartin_i
+      verbose = verbose_i
+      OPEN=OPEN_i
+      NMAX= NMAX_i
+      NUNP=NUNP_i
+      VCINP=VCINP_i
+      GOLD=GOLD_i
+      told=told_i
+      rmax=rmax_i
+      rmaxs=rmaxs_i
+      predcoef=predcoef_i
+      idip=idip_i
+      writexyz=writexyz_i
+      intsoldouble= intsoldouble_i
+      DIIS=DIIS_i
+      ndiis=ndiis_i
+      dgtrig= dgtrig_i
+      Iexch=Iexch_i
+      integ=integ_i
+      DENS=DENS_i
+      IGRID=IGRID_i
+      IGRID2=IGRID2_i
+      timedep=timedep_i
+      field=field_i
+      exter=exter_i
+      tdstep=tdstep_i
+      ntdstep= ntdstep_i
+      a0=a0_i
+      epsilon=epsilon_i
+      Fx=Fx_i
+      Fy=Fy_i
+      Fz=Fz_i
+      NBCH=NBCH_i
+      propagator=propagator_i
+      writedens=writedens_i
+      tdrestart=tdrestart_i
+      write_density_cube=write_density_cube_i
 
 c      parameter (norbit=800,Ngrid=0)
 
 
-         natom=natomin
+      natom=natomin
 
 c       integer, intent(in) :: Iiiz(natom)
-         ntatom=natom+nclatom
-         ntatom=ntatom ! the number of clasical atoms can change
-         ngnu=natom*ng0
-         ngdnu=natom*ngd0
-         ngDyn=ngnu
-         ngdDyn=ngdnu
+      ntatom=natom+nclatom
+      ntatom=ntatom ! the number of clasical atoms can change
+      ngnu=natom*ng0
+      ngdnu=natom*ngd0
+      ngDyn=ngnu
+      ngdDyn=ngdnu
 c
-        ng3=4*ngDyn
+      ng3=4*ngDyn
 c para version en memoria
       ng2=5*ngDyn*(ngDyn+1)/2+3*ngdDyn*(ngdDyn+1)/2+
      >           ngDyn+ngDyn*norbit+Ngrid
@@ -137,7 +138,7 @@ c      write(*,*) 'ng2 en init',ng2,ngDyn,ngdDyn,norbit,Ngrid
       allocate(X(ngDyn,ng3),X2(ngDyn,ng3),XX(ngdDyn,ngdDyn))
       allocate(RMM(ng2),RMM1(ng2),RMM2(ng2), RMM3(ng2))
       
-       allocate (c(ngnu,nl),a(ngnu,nl),Nuc(ngnu),ncont(ngnu)
+      allocate (c(ngnu,nl),a(ngnu,nl),Nuc(ngnu),ncont(ngnu)
      >  ,cx(ngdnu,nl),ax(ngdnu,nl),Nucx(ngdnu),ncontx(ngdnu)
      > ,cd(ngdnu,nl),ad(ngdnu,nl),Nucd(ngdnu),ncontd(ngdnu)
      > ,indexii(ngnu),indexiid(ngdnu))
@@ -148,8 +149,8 @@ c      write(*,*) 'ng2 en init',ng2,ngDyn,ngdDyn,norbit,Ngrid
       allocate(d(natom,natom))
          Iz=Izin
       if(verbose) then
-      write(6,*) '---------Lio options-------'
-      write(6,*)      '  OPEN ', OPEN
+       write(6,*) '---------Lio options-------'
+       write(6,*)     '  OPEN ', OPEN
        write(6,*)     '  NMAX ', NMAX
        write(6,*)     '  NUNP ', NUNP
        write(6,*)     '  VCINP ', VCINP
@@ -160,6 +161,7 @@ c      write(*,*) 'ng2 en init',ng2,ngDyn,ngdDyn,norbit,Ngrid
 !     write(6,*)     '  predcoef ', predcoef
 !     write(6,*)     '  idip ', idip
        write(6,*)     '  writexyz ', writexyz
+       write(6,*)     '  write_density_cube ', write_density_cube
        write(6,*)     '  DIIS ', DIIS
        write(6,*)     '  ndiis ', ndiis
        write(6,*)     '  Iexch ', Iexch
@@ -181,9 +183,8 @@ c      write(*,*) 'ng2 en init',ng2,ngDyn,ngdDyn,norbit,Ngrid
        write(6,*)     '  propagator ', propagator
        write(6,*)     '  writedens ', writedens
        write(6,*)     '  tdrestart ', tdrestart
-        write(6,*) '-----end Lio options-------'
-       endif
-
+       write(6,*) '-----end Lio options-------'
+      endif
 
 c        write(92,*) izin
 c      write(*,*) (ngDyn*ng3+ngdDyn**2+ng2+ngDyn*
@@ -192,15 +193,14 @@ c      write(*,*)   ng2
 !#ifdef G2G
       call g2g_init()
 !#endif
-        nqnuc=0
-       do i=1,natom
-        nqnuc=nqnuc+Iz(i)
-        enddo
+      nqnuc=0
+      do i=1,natom
+       nqnuc=nqnuc+Iz(i)
+      enddo
 
 c !!! REVISAR QUE nco se un numero ENTERO ¡¡¡¡¡¡
 
-        nco=((nqnuc - charge)-Nunp)/2
-
+      nco=((nqnuc - charge)-Nunp)/2
 c
 c        write(*,*) 'NCO=',NCO
 c       write(*,*) natom,ntatom,ngDyn,ngdDyn,ng0,ngd0

@@ -16,19 +16,10 @@ ifeq ($(magma),1)
         LIBS     += -L$(MAGMAROOT)/lib -lmagma
 endif
 
-<<<<<<< HEAD
-ifeq ($(debug),1)
-        DBUG = -g -O0 -debug all $(DEFINE)
-endif
-
-liosolo: main.f
-	ifort $(DBUG) -L ../lioamber/ -llio-g2g -L ../g2g/ -lg2g  -I../lioamber/ $(LIBS)  main.f -o liosolo
-=======
 ######################################################################
 liosolo: main.f
 	$(FC) $< -o $@ $(FLAGS) $(LIBS)
 
->>>>>>> 7d06646cb1333889dc332b2c15ba48ac06d0dcde
 clean:
 	rm -rf liosolo
 ######################################################################

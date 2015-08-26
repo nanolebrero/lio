@@ -5,7 +5,7 @@
 !
 !
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
-       use garcha_mod,only:natom
+       use garcha_mod,only:natom,noconverge
        implicit none
        real*8,intent(out) :: dxyzqm(3,natom)
        real*8,allocatable :: ff1G(:,:),ffSG(:,:),ff3G(:,:)
@@ -14,8 +14,8 @@
        logical            :: print_forces
 
 !--------------------------------------------------------------------!
+       if(noconverge.gt.0) return 
        allocate(ff1G(natom,3),ffSG(natom,3),ff3G(natom,3))
-
        call g2g_timer_start('int1G')
        ff1G=0.0d0
        call int1G(ff1G)
@@ -70,15 +70,10 @@ c       factor=627.509391D0/0.5291772108D0
          write(fileunit,*)
 
          close(fileunit)
-       endif
 
 !--------------------------------------------------------------------!
        deallocate(ff1G,ffSG,ff3G)
+       endif
  200   format(1X,A4,1X,I4,3(2X,E14.7))
        return;end subroutine
-<<<<<<< HEAD
-!½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½½!
-
-=======
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
->>>>>>> 7d06646cb1333889dc332b2c15ba48ac06d0dcde

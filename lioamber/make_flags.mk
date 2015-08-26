@@ -42,12 +42,15 @@ endif
 # which to do it.
 # (*)
 optim1=-O1
+optim2=-O2
 optim3=-O3
 ifeq ($(non_optimize),1)
   optim1=-O0
+  optim2=-O0
   optim3=-O0
 else ifeq ($(full_optimize),1)
   optim1=-O3
+  optim2=-O3
   optim3=-O3
 endif
 optim=$(optim3)
@@ -58,6 +61,9 @@ objlist += intsolG.o intsolGs.o intsol.o
 $(objlist:%.o=$(obj_path)/%.o) : optim:=$(optim1)
 #$(objlist:%.o=$(obj_path)/%.o) : private optim+=$(optim1)
 
+objlist := mathsubs.o
+$(objlist:%.o=$(obj_path)/%.o) : optim:=$(optim2)
+
 objlist := matmuldiag.o int3lu.o
 objlist := SCF.o TD.o ehrenfest.o magnus.o predictor.o
 objlist += FixMessRho.o get_unit.o mulliken.o PackedStorage.f
@@ -65,7 +71,8 @@ objlist += init_amber.o init.o lio_init.o liomain.o lio_finalize.o
 objlist += dft_get_mm_forces.o dft_get_qm_forces.o
 objlist += alg.o drive.o func.o grid.o dipmem.o jarz.o
 objlist += int1.o int2.o int2G.o int3mem.o int3mems.o intSG.o
-objlist += garcha_mod.o mathsubs.o
+objlist += garcha_mod.o
+objlist += elec.o dns.o
 $(objlist:%.o=$(obj_path)/%.o) : optim:=$(optim3)
 #UNNECESSARY IF PREVIOUS ASSIGNMENT USED PRIVATE KEYWORD
 
@@ -91,6 +98,7 @@ ifeq ($(ifort),1)
   objlist += alg.o drive.o func.o grid.o dipmem.o jarz.o
   objlist += int1.o int2.o int2G.o int3mem.o int3mems.o intSG.o
   objlist += garcha_mod.o
+  objlist += elec.o dns.o
   $(objlist:%.o=$(obj_path)/%.o) : myflags:=-mp1 -ip
   #$(objlist:%.o=$(obj_path)/%.o) : private myflags+=$(optim3) -mp1 -ip
 endif

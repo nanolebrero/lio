@@ -21,7 +21,7 @@ ifeq ($(ifort),1)
   LIBS += -lmkl_intel_thread -lmkl_core
   LIBS += -liomp5 -lpthread
 else
-  LIBS += -L/usr/lib -llapack
+  LIBS += -L/usr/lib/lapack -llapack
 endif
 
 

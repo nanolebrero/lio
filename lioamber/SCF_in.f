@@ -1,5 +1,5 @@
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
-      Subroutine SCF_in(E,qmcoords,clcoords,nsolin,dipxyz)
+      Subroutine SCF_in(E,qmcoords,clcoords,nsolin,dipxyz,nstep)
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
       use garcha_mod
       REAL*8 , intent(in)  :: qmcoords(3,natom)
@@ -38,6 +38,15 @@ c          write(87,*) i, j , r(i,j)
         write(18,345) Iz(i),qmcoords(:,i)
       enddo
 
+c      do i=1,nsol
+cc        n=natom+i
+cc        pc(n)=clcoords(4,i)
+cc        do j=1,3
+cc          r(n,j)=clcoords(j,i)/0.529177D0
+cc        enddo
+c         write(18,347) clcoords(4,i),
+c     >                 clcoords(1,i),clcoords(2,i),clcoords(3,i)
+c      enddo
 !--------------------------------------------------------------------!
 ! I am not sure this should be here, but it is the only
 ! place to put it right now (FFR)
@@ -47,12 +56,15 @@ c          write(87,*) i, j , r(i,j)
 !--------------------------------------------------------------------!
 
       if(OPEN) then 
-        call SCFOP(E,dipxyz)
+        call SCFOP(E,dipxyz,nstep)
       else
-        call SCF(E,dipxyz)
+        call SCF(E,dipxyz,nstep)
       endif
 !
 !--------------------------------------------------------------------!
  345  format(2x,I2,2x,3(f10.6,2x))
+ 346  format(2x,I2,2x,4(f10.6,2x))
+ 347  format(2x,4(f10.6,2x))
+ 348  format(2x,I2,2x,3(f10.6,2x))
       return;end subroutine
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!

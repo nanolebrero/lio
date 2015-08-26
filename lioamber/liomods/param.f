@@ -14,15 +14,12 @@ c nt : Number total atoms,
 c ng0 : number of functions, ngd0 : number aux. funct.
 c nl : number of primitives in a given contraction
 c
-
-
-
-      parameter (ntq=200,ntc=50000,nss=1)
+      parameter (ntq=1000,ntc=50000,nss=1)
       parameter (nt=ntq+nss*ntc)
       parameter (ng0=50,ng=ntq*ng0,nl=7)
-      parameter (ngd0=50,ngd=ntq*ngd0)
+      parameter (ngd0=60,ngd=ntq*ngd0)
       parameter (ntqss=ntq+nss)
-      parameter (norbit=800,Ngrid=0)
+      parameter (norbit=8000,Ngrid=0)
 
 c !!!!!!! Actualizar en gpu/cuda/excnum.cu !!!!!
 c FORTRAN_MAX_ATOMS = nt

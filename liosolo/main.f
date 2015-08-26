@@ -15,7 +15,7 @@ c---------------------------------------------------------------------
      > Iexch,integ,dens,igrid,igrid2,timedep, tdstep, ntdstep,
      > propagator,NBCH,
      > field,a0,epsilon,exter,Fx,Fy,Fz, tdrestart, writedens,verbose,
-     >   writeforces
+     >   writeforces,write_density_cube
 
       integer :: ifind, ierr
 
@@ -60,6 +60,7 @@ c---------------------------------------------------------------------
       tdrestart=.false.
       writedens=.true.
       writeforces=.false.
+      write_density_cube=.false.
       narg=command_argument_count()
 
       do i=1, narg
@@ -153,10 +154,11 @@ c--------------------------------------------------------
        if (.not.allocated(Smat))    allocate(Smat(M,M))
        if (.not.allocated(RealRho)) allocate(RealRho(M,M))
 c--------------------------------------------------------
+       nstep=0  ! para escribir el density.nstep.cub si esta write_density_cube=T
        if(OPEN) then
-         call SCFOP(escf,dipxyz)
+         call SCFOP(escf,dipxyz,nstep)
        else
-         call SCF(escf,dipxyz)
+         call SCF(escf,dipxyz,nstep)
        endif
 c-------------------------------------------------------- 
 

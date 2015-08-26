@@ -7,7 +7,7 @@ c and P matrix in lower storage mode ( symmetric matrices)
 c
 c Dario Estrin, 1992
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
-      subroutine SCF(E,dipxyz)
+      subroutine SCF(E,dipxyz,nstep)
       use garcha_mod
       use mathsubs
 c      use qmmm_module, only : qmmm_struct, qmmm_nml
@@ -961,7 +961,7 @@ c-------------------------------------------------------------------
         write(6,*) 'NO CONVERGENCE AT ',NMAX,' ITERATIONS'
         noconverge=noconverge + 1
         converge=0
-        call write_struct() !escribe la estructura no-convergida
+c        call write_struct() !escribe la estructura no-convergida
       else
         write(6,*) 'CONVERGED AT',niter,'ITERATIONS'
         noconverge = 0
@@ -1031,6 +1031,16 @@ c--------------------------------------------------------------
       else
         E=E-Ex
       endif
+c----------------------------------------------------
+c DENSITY CUBE
+      if (write_density_cube) then
+        buffer=5
+        delta_x=0.5
+        n_graf=1
+        call elec(buffer,delta_x,n_graf,nstep)
+      endif
+c
+c----------------------------------------------------
 c calculation of energy weighted density matrix
 c
       kk=0

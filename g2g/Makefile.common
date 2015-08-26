@@ -1,6 +1,6 @@
 # -*- mode: make -*-
 
-CUDAHOME=/opt/cuda
+CUDAHOME=/usr/local/cuda
 
 ifeq ($(non_optimize), 1)
   OPTIMIZE:=-O2
@@ -10,10 +10,10 @@ endif
 
 ifeq ($(gcc),1)
   CXX      := g++
-  CXXFLAGS := $(CXXFLAGS) -fPIC -Wall -Wno-long-long -ansi -Wno-unused -I$(CUDAHOME)/include
+  CXXFLAGS := $(CXXFLAGS) -fPIC -Wall -Wno-long-long -ansi -Wno-unused -I$(CUDAHOME)/include -I/usr/include/x86_64-linux-gnu/c++/4.8/
 else
   CXX      := icc
-  CXXFLAGS := $(CXXFLAGS) -fPIC  -vec-report1 -g -I. -I$(CUDAHOME)/include
+  CXXFLAGS := $(CXXFLAGS) -fPIC  -vec-report1 -g -I. -I$(CUDAHOME)/include -I/usr/include/x86_64-linux-gnu/c++/4.8/
 endif
 
 # Debug/release configuration

@@ -713,7 +713,7 @@ C     ALL COORDINATES ARE GIVEN IN ATOMIC UNITS.
 C
       if(n_graf.gt.1) then
         write (filename_field,*) "field.cub"
-        open(unit=188,name=filename_field)
+        open(unit=188,FILE=filename_field)
 
         write(188,*) 'Elfield'
         write(188,*)
@@ -733,7 +733,7 @@ c        write (*,*) 'Nstep= ',nstep
 c        write (filename_dens,"(A5,I,A4)") "dens.",nstep,".cub"
 c        write (filename_dens,*) "dens.",nstep,".cub"
         write (filename_dens,*) "dens.cub"
-        open(unit=189,name=filename_dens)
+        open(unit=189,FILE=filename_dens)
         write(189,*) 'densidad'
         write(189,*)
         write(189,678) natom,Xmin,Ymin,Zmin

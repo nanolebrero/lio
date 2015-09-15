@@ -29,13 +29,14 @@ objects += int1.o int1G.o int2.o int2G.o
 objects += int3lu.o int3mem.o int3mems.o int3G.o
 objects += intsol.o intsolG.o intsolGs.o
 objects += intfld.o intSG.o
-objects += FixMessRho.o get_unit.o PackedStorage.f
+objects += FixMessRho.o get_unit.o 
 objects += garcha_mod.o
 objects += liokeys.o
 objects += sysdata.o
 objects += mathsubs.o
 objects += maskrmm.o
 objects += elec.o dns.o
+objects += PackedStorage.o
 
 #
 ######################################################################

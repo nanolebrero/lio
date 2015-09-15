@@ -4,10 +4,12 @@
 # (both for free subroutines and modules alike).
 ifeq ($(ifort),1)
   FC     = ifort
+  CC     = icc
   FFLAGS+= -module $(obj_path)
   FFLAGS+= -fpp
 else
   FC     = gfortran
+  CC     = gcc
   FFLAGS+= -I$(obj_path) -J$(obj_path)
   FFLAGS+= -cpp
 endif

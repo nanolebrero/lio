@@ -35,6 +35,12 @@ ifeq ($(magma),1)
   DEFINE += -Dmagma
 endif
 
+FORTRAN_WRAPPER=
+ifeq ($(cublas),1)
+  DEFINE += -DCUBLAS
+endif
+
+
 #
 ######################################################################
 # TARGET-SPECIFIC FLAGS (OPTIMIZATION) : This following section
@@ -75,6 +81,11 @@ objlist += garcha_mod.o
 objlist += elec.o dns.o
 $(objlist:%.o=$(obj_path)/%.o) : optim:=$(optim3)
 #UNNECESSARY IF PREVIOUS ASSIGNMENT USED PRIVATE KEYWORD
+
+ifeq ($(cublas),1)
+tmplist += cublasmath.o
+endif
+$(tmplist:%.o=$(obj_path)/%.o) : optim:=$(optim3)
 
 #
 ######################################################################

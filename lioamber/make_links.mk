@@ -24,6 +24,10 @@ else
   LIBS += -L/usr/lib/lapack -llapack
 endif
 
+ifeq ($(cublas),1)
+  LIBS += -lstdc++ -L$(CUDA_HOME)/lib64/ -lcudart -lcublas
+endif
+
 
 ifeq ($(magma),1)
   LIBS += -L$(MAGMAROOT)/lib -lmagma

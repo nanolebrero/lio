@@ -63,4 +63,22 @@ objlist := SCF.o SCFop.o
 $(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/mathsubs.o
 $(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/mathsubs.mod
 
+# cublas
+ifeq ($(cublas),1)
+objects   += cublasmath.o fortran.o
+src_paths += cublasmath
+include cublasmath/cublasmath.mk
+
+tmplist := cublasmath.o
+$(tmplist:%.o=$(obj_path)/%.o) : $(obj_path)/garcha_mod.mod
+$(tmplist:%.o=$(obj_path)/%.o) : $(obj_path)/fortran.o
+
+tmplist := SCF.o SCFop.o TD.o
+$(tmplist:%.o=$(obj_path)/%.o) : $(obj_path)/cublasmath.mod
+
+$(obj_path)/fortran.o: $(CUDA_HOME)/src/fortran.c
+	$(CC) -fPIC -DCUBLAS_GFORTRAN -O3 -c $< -o $@ -I$(CUDA_HOME)/include
+endif
+
+
 ######################################################################

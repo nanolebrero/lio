@@ -36,7 +36,7 @@ objects += sysdata.o
 objects += mathsubs.o
 objects += maskrmm.o
 objects += elec.o dns.o
-objects += PackedStorage.o
+objects += PackedStorage.o TDop.o
 
 #
 ######################################################################
@@ -54,7 +54,7 @@ objlist += dip.o dipmem.o drive.o grid.o init_amber.o init.o
 objlist += int1.o int2.o int3lu.o int3mem.o int3mems.o intfld.o intsol.o
 objlist += int1G.o int2G.o int3G.o intSG.o intsolG.o intsolGs.o
 objlist += jarz.o lio_finalize.o predictor.o
-objlist += SCF.o SCF_in.o SCFop.o TD.o
+objlist += SCF.o SCF_in.o SCFop.o TD.o TDop.o
 $(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/garcha_mod.o
 $(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/garcha_mod.mod
 
@@ -74,7 +74,7 @@ tmplist := cublasmath.o
 $(tmplist:%.o=$(obj_path)/%.o) : $(obj_path)/garcha_mod.mod
 $(tmplist:%.o=$(obj_path)/%.o) : $(obj_path)/fortran.o
 
-tmplist := SCF.o SCFop.o TD.o
+tmplist := SCF.o SCFop.o TD.o TDop.o
 $(tmplist:%.o=$(obj_path)/%.o) : $(obj_path)/cublasmath.mod
 
 $(obj_path)/fortran.o: $(CUDA_HOME)/src/fortran.c

@@ -80,7 +80,7 @@ objlist += dft_get_mm_forces.o dft_get_qm_forces.o
 objlist += alg.o drive.o func.o grid.o dipmem.o jarz.o
 objlist += int1.o int2.o int2G.o int3mem.o int3mems.o intSG.o
 objlist += garcha_mod.o
-objlist += elec.o dns.o
+objlist += elec.o dns.o TDop.o
 $(objlist:%.o=$(obj_path)/%.o) : optim:=$(optim3)
 #UNNECESSARY IF PREVIOUS ASSIGNMENT USED PRIVATE KEYWORD
 

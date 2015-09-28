@@ -4,6 +4,7 @@
 src_paths += liomods
 src_paths += maskrmm
 src_paths += mathsubs
+src_paths += general_module
 
 #
 ######################################################################
@@ -13,6 +14,7 @@ src_paths += mathsubs
 include liomods/liomods.mk
 include maskrmm/maskrmm.mk
 include mathsubs/mathsubs.mk
+include general_module/general_module.mk
 
 #
 ######################################################################
@@ -35,7 +37,9 @@ objects += liokeys.o
 objects += sysdata.o
 objects += mathsubs.o
 objects += maskrmm.o
+objects += general_module.o
 objects += elec.o dns.o
+objects += read_groups.o fterm_biaspot.o
 objects += PackedStorage.o TDop.o
 
 #

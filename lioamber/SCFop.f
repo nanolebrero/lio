@@ -35,6 +35,23 @@ c       REAL*8 , intent(in)  :: clcoords(4,nsolin)
       REAL*8,ALLOCATABLE :: WORK2(:)
         logical :: just_int3n,ematalloct
 
+
+!-FFR----------------------------------------------------------------!
+       logical             :: dovv
+       real*8              :: weight
+       integer,allocatable :: atom_group(:)
+       integer,allocatable :: orb_group(:)
+       integer,allocatable :: orb_selection(:)
+
+       real*8,dimension(:,:),allocatable :: fockbias
+       real*8,dimension(:,:),allocatable :: Xmat,Xtrp,Ymat,Ytrp
+       real*8,dimension(:,:),allocatable :: sqsm
+       real*8,dimension(:,:),allocatable :: Vmat
+       real*8,dimension(:),allocatable   :: Dvec
+!-FFR----------------------------------------------------------------!
+
+
+
       call g2g_timer_start('SCF')
       if(verbose) write(*,*) '======>>>> INGRESO A SCFop <<<<=========='
       if(verbose)  write(*,"(A,I8,I8,I8)") 
@@ -122,6 +139,32 @@ c Number of electrons
       D2=1.D0
       DAMP0=GOLD
       DAMP=DAMP0
+
+!--------------------------------------------------------------------!
+! FFR: Variable Allocation
+       allocate(Xmat(M,M),Xtrp(M,M),Ymat(M,M),Ytrp(M,M))
+       allocate(Vmat(M,M),Dvec(M))
+       allocate(sqsm(M,M))
+       allocate(fockbias(M,M))
+
+       dovv=.false.
+       if (dovv.eqv..true.) then
+
+        if (.not.allocated(atom_group)) then
+          allocate(atom_group(natom))
+          call read_list('atomgroup',atom_group)
+        endif
+        if (.not.allocated(orb_group)) then
+          allocate(orb_group(M))
+          call atmorb(atom_group,nuc,orb_group)
+        endif
+        if (.not.allocated(orb_selection)) then
+          allocate(orb_selection(M))
+        endif
+       endif
+!--------------------------------------------------------------------!
+
+
 c
 c      Qc=0.0D0
 c      do i=1,natom
@@ -243,7 +286,7 @@ c LAPACK OPTION -----------------------------------------
         call dsyev('V','L',M,X,M,RMM(M13),WORK2,LWORK2,info)
 #endif
 c-----------------------------------------------------------
-c 
+c
 c X transformation matrix , canonical orthogonalization
 c LINEAR DEPENDENCY ELIMINATION
         allocate (Y(M,M),Ytrans(M,M),Xtrans(M,M))
@@ -270,6 +313,26 @@ c QUE ES ESTO ????
             Xtrans(i,j)=X(j,i)
           enddo
         enddo
+
+!-FFR----------------------------------------------------------------!
+         call spunpack('L',NM,RMM(M15),Vmat)
+         sqsm=matmul(Vmat,Ytrans)
+
+         if (dovv.eqv..true.) then
+          fockbias=0.0d0
+
+          weight=0.195d0
+          call vector_selection(1,orb_group,orb_selection)
+          call fterm_biaspot(M,sqsm,orb_selection,weight,fockbias)
+
+          weight=-weight
+          call vector_selection(2,orb_group,orb_selection)
+          call fterm_biaspot(M,sqsm,orb_selection,weight,fockbias)
+         endif
+!-FFR----------------------------------------------------------------!
+
+
+
 c      ENDIF  
 c
 c ======>>>>>> CASE OF NO STARTING GUESS PROVIDED,  <<<<<=========

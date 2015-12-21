@@ -33,6 +33,20 @@ c       REAL*8 , intent(in)  :: clcoords(4,nsolin)
         REAL*8,ALLOCATABLE :: WORK2(:)
         INTEGER, ALLOCATABLE :: IWORK2(:),IPIV(:)
         logical :: just_int3n,ematalloct
+
+!FFR!
+       logical             :: dovv
+       real*8              :: weight
+       integer,allocatable :: atom_group(:)
+       integer,allocatable :: orb_group(:)
+       integer,allocatable :: orb_selection(:)
+
+       real*8,dimension(:,:),allocatable :: fockbias
+       real*8,dimension(:,:),allocatable :: Xmat,Xtrp,Ymat,Ytrp
+       real*8,dimension(:,:),allocatable :: sqsm
+       real*8,dimension(:,:),allocatable :: Vmat
+       real*8,dimension(:),allocatable   :: Dvec
+
 !--------------------------------------------------------------------!
 
 
@@ -120,6 +134,31 @@ c
       enddo
       Qc=Qc-Nel
       Qc2=Qc**2
+
+
+! FFR: Variable Allocation
+!--------------------------------------------------------------------!
+       allocate(Xmat(M,M),Xtrp(M,M),Ymat(M,M),Ytrp(M,M))
+       allocate(Vmat(M,M),Dvec(M))
+       allocate(sqsm(M,M))
+       allocate(fockbias(M,M))
+
+       dovv=.false.
+       if (dovv.eqv..true.) then
+
+        if (.not.allocated(atom_group)) then
+          allocate(atom_group(natom))
+          call read_list('atomgroup',atom_group)
+        endif
+        if (.not.allocated(orb_group)) then
+          allocate(orb_group(M))
+          call atmorb(atom_group,nuc,orb_group)
+        endif
+        if (.not.allocated(orb_selection)) then
+          allocate(orb_selection(M))
+        endif
+       endif
+
 
 C----------------------------------------
 c Para hacer lineal la integral de 2 electrone con lista de vecinos. Nano

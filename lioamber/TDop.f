@@ -327,6 +327,10 @@ c s is in RMM(M13,M13+1,M13+2,...,M13+MM)
             call int2()
             call g2g_timer_stop('int2')
             call g2g_timer_start('int3mmem')
+            if (memo) then
+              deallocate (kkind,kkinds)
+              deallocate(cool,cools)
+            endif
             call int3mem()
             call int3mems()
             call g2g_timer_stop('int3mmem')
@@ -334,7 +338,7 @@ c s is in RMM(M13,M13+1,M13+2,...,M13+MM)
 #ifdef CUBLAS
             call CUBLAS_FREE(devPtrY)
 #endif
-            deallocate(y)
+!            deallocate(y)
 !------------------------------------------------------------------------------!
             call g2g_timer_stop('inicio')
 !##############################################################################!
@@ -359,45 +363,43 @@ c s is in RMM(M13,M13+1,M13+2,...,M13+MM)
 !--------------------------------------!
               call int3lu(E2)
               call g2g_solve_groups(0,Ex,0)
-!              write(*,*) '! step & energy', istep,E
+              write(*,*) '! step & energy', istep,E
               E1=0.0D0
+
+
 c ELECTRIC FIELD CASE - Type=gaussian (ON)
-!            if(istep.lt.pert_steps) then
+            if(istep.lt.pert_steps) then
                if (field) then
-                 write(*,*) 'FIELD ON'
-!                 call dip(ux,uy,uz)
-!                 if (exter) then
-!                   g=1.0D0
-!                   fac=2.54D0
-!                   fxx=fx*exp(-0.2*(real(istep-50))**2)
-!                   fyy=fy*exp(-0.2*(real(istep-50))**2)
-!                   fzz=fz*exp(-0.2*(real(istep-50))**2)
-!                   write(*,*) fxx,fyy,fzz
+                 call dip(ux,uy,uz)
+                 if (exter) then
+                   g=1.0D0
+                   fac=2.54D0
+                   fxx=fx*exp(-0.2*(real(istep-50))**2)
+                   fyy=fy*exp(-0.2*(real(istep-50))**2)
+                   fzz=fz*exp(-0.2*(real(istep-50))**2)
+                   write(*,*) fxx,fyy,fzz
 !
-!                 else
-!                   g=2.0D0*(epsilon-1.0D0)/((2.0D0*epsilon+1.0D0)*a0**3)
-!                   Fx=ux/2.54D0
-!                   Fy=uy/2.54D0
-!                   Fz=uz/2.54D0
-!                   fac=(2.54D0*2.00D0)
+                 else
+                   g=2.0D0*(epsilon-1.0D0)/((2.0D0*epsilon+1.0D0)*a0**3)
+                   Fx=ux/2.54D0
+                   Fy=uy/2.54D0
+                   Fz=uz/2.54D0
+                   fac=(2.54D0*2.00D0)
 !
-!                 endif
-!                 call dip2(g,Fxx,Fyy,Fzz)             !VER SI ANDA!!
-!                 E1=-1.00D0*g*(Fx*ux+Fy*uy+Fz*uz)/fac -
-!     >           0.50D0*(1.0D0-1.0D0/epsilon)*Qc2/a0
-!                 call EFIELD(istep,fxx,fyy,fzz,'GAUSSIAN',E1,M11,MM)
-!                 if((istep.gt.pert_steps).and.(fxx.eq.0.0D0).and.
-!     >           (fyy.eq.0.0D0).and.(fzz.eq.0.0D0)) field=.false.
-               else
-!           endif
+                 endif
+                 call intfld(g,Fxx,Fyy,Fzz)
+                 E1=-1.00D0*g*(Fx*ux+Fy*uy+Fz*uz)/fac -
+     >        0.50D0*(1.0D0-1.0D0/epsilon)*Qc2/a0
+              endif
+            endif
 !------------------------------------------------------------------------------!
 ! E1 includes solvent 1 electron contributions
-                  do k=1,MM
-                     E1=E1+RMM(k)*RMM(M11+k-1)
-                  enddo
-               endif
-               write(*,*) '! step & energy', istep,E
-!        write(*,*) '1 electron contribution',E1
+            do k=1,MM
+              E1=E1+RMM(k)*RMM(M11+k-1)
+            enddo
+
+
+
 !------------------------------------------------------------------------------!
 ! Here we obtain the fock matrix in the molecular orbital (MO) basis.
 ! where U matrix with eigenvectors of S , and s is vector with

@@ -590,10 +590,10 @@ c      write(*,*) 'Coulomb E',E2-Ex,Ex
  995   continue
 c
 c
-         if (memo) then
-            deallocate (kkind,kkinds)
-            deallocate(cool,cools)
-         endif
+!         if (memo) then
+!            deallocate (kkind,kkinds)
+!            deallocate(cool,cools)
+!         endif
          if(propagator.eq.2) then
            deallocate (F1a,F1b)
          endif

@@ -460,6 +460,11 @@ c        do k=1,MM
 c         write(400,*) RMM(k)
 c        enddo
 
+! TODO: arreglar esto que tira error
+!!      if ((timedep.eq.1).and.(tdrestart)) then
+!!        call TDop()
+!!        return
+!!      endif
       call int2()
 c
 **
@@ -1431,6 +1436,11 @@ c         enddo
 c         rewind(29)
 c-------------------------------------------------
 c      endif
+      if(timedep.eq.1) then
+        call TDop()
+      endif
+
+
       if(DIIS) then
         deallocate (Y,Ytrans,Xtrans,rho1_a,rho_a,fock_a,fock_am,
      >           rho1_b,rho_b,fock_b,fock_bm,
@@ -1438,9 +1448,10 @@ c      endif
      >           FP_PF_b, FP_PFb_v,FP_PFb_m,
      >           EMATa,EMATb,EMAT2_a,EMAT2_b,bcoef_a,bcoef_b,suma)
       endif
-
+      if(timedep.eq.0) then
       deallocate (kkind,kkinds)
       deallocate(cool,cools)
+      endif
 
  500  format('SCF TIME ',I6,' sec')
  450  format ('SCF ENERGY = ',F19.12)

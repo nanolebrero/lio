@@ -26,6 +26,7 @@
           pi = 3.1415926535897932384626433832795d0
           ts = ts * 1.E-15 !conversion of time step to seconds
           damp = damp * 1.E15
+          read(1,*)
           do i = 1, ns
             read(1,*) t, mu(i)
           enddo

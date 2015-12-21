@@ -697,6 +697,24 @@ c
 c now F contains transformed F
 c diagonalization now
 c
+! FFR: Te odio
+            fock=0
+            do j=1,M
+              do k=1,j
+                 fock(k,j)=RMM(M5+j+(M2-k)*(k-1)/2-1)
+              enddo
+              do k=j+1,M
+                 fock(k,j)=RMM(M5+k+(M2-j)*(j-1)/2-1)
+              enddo
+            enddo
+
+! FFR: Van Voorhis Term for not DIIS
+!--------------------------------------------------------------------!
+         if (dovv.eqv..true.) fock=fock+fockbias
+         fock=basechange(M,Xtrans,fock,X)
+
+
+
         do i=1,M
           RMM(M15+i-1)=0.D0
           RMM(M13+i-1)=0.D0

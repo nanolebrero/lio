@@ -159,6 +159,25 @@ c
         endif
        endif
 
+       call int1(En)
+       call spunpack('L',M,RMM(M5),Smat)
+       call sdiag_canonical(Smat,Dvec,Vmat,Xmat,Xtrp,Ymat,Ytrp)
+       sqsm=matmul(Vmat,Ytrp)
+
+
+       if (dovv.eqv..true.) then
+         fockbias=0.0d0
+
+         weight=0.195d0
+         call vector_selection(1,orb_group,orb_selection)
+         call fterm_biaspot(M,sqsm,orb_selection,weight,fockbias)
+
+         weight=-weight
+         call vector_selection(2,orb_group,orb_selection)
+         call fterm_biaspot(M,sqsm,orb_selection,weight,fockbias)
+       endif
+
+
 
 C----------------------------------------
 c Para hacer lineal la integral de 2 electrone con lista de vecinos. Nano
@@ -559,6 +578,10 @@ c-----------Parte de arriba a la derecha de la matriz (sin incluir terminos diag
               fock(j,k)=RMM(M5+k+(M2-j)*(j-1)/2-1)
             enddo
           enddo
+
+! FFR: Van Voorhis Term for DIIS
+!--------------------------------------------------------------------!
+         if (dovv.eqv..true.) fock=fock+fockbias
 
           fock=basechange(M,Xtrans,fock,X)
 

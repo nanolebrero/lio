@@ -21,8 +21,9 @@ c---------------------------------------------------------------------
      > writeforces,basis_set,fitting_set,int_basis,
      > cubegen_only,cube_res,
      > cube_dens,cube_dens_file,
-     > cube_orb,cube_sel,cube_orb_file,cube_elec,cube_elec_file
-
+     > cube_orb,cube_sel,cube_orb_file,cube_elec,cube_elec_file,
+     > driving_rate,transport_calc,generate_rho0,save_charge_freq   ! DRIVING STUFF
+!
       integer :: ifind, ierr
 
      !defaults
@@ -80,6 +81,12 @@ c---------------------------------------------------------------------
       tdrestart=.false.
       writedens=.true.
       writeforces=.false.
+! TRANSPORT STUFF
+      driving_rate=0.0D0
+      transport_calc=.false.
+      generate_rho0=.false.
+      save_charge_freq=1
+!
       narg=command_argument_count()
 
       do i=1, narg

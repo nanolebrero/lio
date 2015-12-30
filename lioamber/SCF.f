@@ -612,7 +612,7 @@ c-------------------------------------------------------
 c
 c REACTION FIELD CASE --------------------------------------------
 c
-        IF(FIELD) THEN
+        IF(FIELD.and.generate_rho0) THEN
             call dip(ux,uy,uz)
             write(*,*) 'ux,uy,uz =', ux,uy,uz
 !            fxx=fx

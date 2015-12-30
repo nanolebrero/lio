@@ -4,6 +4,7 @@
 src_paths += liomods
 src_paths += maskrmm
 src_paths += mathsubs
+src_paths += general_module
 ifeq ($(cublas),1)
 src_paths += mathsubs/cublas/
 
@@ -16,6 +17,7 @@ endif
 include liomods/liomods.mk
 include maskrmm/maskrmm.mk
 include mathsubs/mathsubs.mk
+include general_module/general_module.mk
 ifeq ($(cublas),1)
 include mathsubs/cublas/cublasmath.mk
 endif
@@ -43,6 +45,7 @@ objects += mathsubs.o
 objects += maskrmm.o
 objects += density.o
 objects += transport.o
+objects += fterm_biaspot.o lowdinpop.o general_module.o
 ifeq ($(cublas),1)
 objects += cublasmath.o 
 endif
@@ -67,17 +70,20 @@ objlist += jarz.o lio_finalize.o predictor.o
 objlist += SCF.o SCF_in.o SCFop.o TD.o cubegen.o
 $(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/garcha_mod.mod
 
-
 # mathsubs
-objlist := SCF.o SCFop.o transport.f
+objlist := SCF.o SCFop.o
 $(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/mathsubs.mod
+
+# general_module
+objlist := SCF.o TD.o
+$(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/general_module.mod
 
 ifeq ($(cublas),1)
 #cublasmath
 objlist := cublasmath.o
 $(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/garcha_mod.mod
 
-objlist := SCF.o SCFop.o TD.o transport.f
+objlist := SCF.o SCFop.o TD.o
 $(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/cublasmath.mod
 endif
 

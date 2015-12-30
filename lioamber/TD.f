@@ -30,6 +30,7 @@ c       USE latom
 #ifdef CUBLAS
        use cublasmath
 #endif
+       use general_module
        IMPLICIT REAL*8 (a-h,o-z)
        INTEGER :: istep
        REAL*8 :: t,E2
@@ -56,7 +57,7 @@ c       USE latom
      >   pert_steps,lpfrg_steps,chkpntF1a,chkpntF1b
        REAL*8 ::
      >   dt_magnus,dt_lpfrg
-        logical :: just_int3n,ematalloct
+        logical :: just_int3n,ematalloct,lpop
 !! CUBLAS
 #ifdef CUBLAS
       integer sizeof_real
@@ -81,13 +82,24 @@ c       USE latom
 !! TRANSPORT - ELECTROSTAT -
        COMPLEX*8,ALLOCATABLE,DIMENSION(:,:) :: rho_et
        LOGICAL :: ET
-       LOGICAL :: TRANSPORT_CALC
+!       LOGICAL :: TRANSPORT_CALC
 #ifdef TD_SIMPLE
        COMPLEX*8, allocatable :: rhofirst(:,:)
 #else
        COMPLEX*16, allocatable :: rhofirst(:,:)
 #endif
        INTEGER,ALLOCATABLE,DIMENSION(:,:) :: mapmat
+!FFR!
+       logical             :: dovv
+       real*8              :: weight
+       integer,allocatable :: atom_group(:)
+       integer,allocatable :: orb_group(:)
+       integer,allocatable :: orb_selection(:)
+
+       real*8,dimension(:,:),allocatable :: fockbias
+       real*8,dimension(:,:),allocatable :: sqsm
+       real*8,dimension(:,:),allocatable :: Vmat
+       real*8,dimension(:),allocatable   :: Dvec
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
        call g2g_timer_start('TD')
        call g2g_timer_start('inicio')
@@ -139,9 +151,10 @@ c       USE latom
 
 ! CASO RHOFIRST
        ALLOCATE(rhofirst(M,M))
-!
+! LOWDIN POPULATION
+       lpop=.false.
 ! TRANSPORT
-       TRANSPORT_CALC=.true.
+!       TRANSPORT_CALC=.true.
        IF (TRANSPORT_CALC) THEN
        ALLOCATE(mapmat(M,M))
        ENDIF
@@ -149,8 +162,6 @@ c       USE latom
            inquire(file='atomgroup',exist=exists)
            if (.not.exists) then
                write(*,*) 'ERROR CANNOT FIND atomgroup file'
-               write(*,*) '(if you are not restarting a previ
-     >ous run set tdrestart= false)'
                stop
            endif
            open(unit=678,file='atomgroup')
@@ -170,7 +181,6 @@ c       USE latom
        IF(TRANSPORT_CALC) THEN
           call mat_map(group,mapmat)
        ENDIF
-
 ! Pointers -
        Ndens=1
        E=0.0D0
@@ -298,6 +308,22 @@ c Initializations/Defaults
            enddo
            Qc=Qc-Nel
            Qc2=Qc**2
+! FFR: Variable Allocation
+!--------------------------------------------------------------------!
+       allocate(Vmat(M,M),Dvec(M))
+       allocate(sqsm(M,M))
+       allocate(fockbias(M,M))
+
+       dovv=.true.
+       if (dovv.eq..true.) then
+        if (.not.allocated(orb_group)) then
+          allocate(orb_group(M))
+          call atmorb(group,nuc,orb_group)
+        endif
+        if (.not.allocated(orb_selection)) then
+          allocate(orb_selection(M))
+        endif
+       endif
 !------------------------------------------------------------------------------!
 ! Two electron integral with neighbor list.
 !
@@ -381,6 +407,11 @@ c         endif
               allocate(overlap(M,M),rhoscratch(M,M))
               call spunpack('L',M,RMM(M5),overlap)
             endif
+            DO ii=1,M
+            DO jj=1,M
+            write(9999999,*) overlap(ii,jj)
+            ENDDO
+            ENDDO
 ! LED-DEVICE ORTHOGONALIZATION TEST
 !            OPEN(unit=232323232,file='overlap')
 !            OPEN(unit=131313131, file='mapmat')
@@ -407,51 +438,18 @@ c         endif
                stop
             endif
 #endif
-!--------------------------------------!
-c Diagonalization of S matrix, after this is not needed anymore
-c s is in RMM(M13,M13+1,M13+2,...,M13+MM)
-!--------------------------------------!
-! ESSL OPTION
-#ifdef essl
-       call DSPEV(1,RMM(M5),RMM(M13),X,M,M,RMM(M15),M2)
-#endif
-!--------------------------------------!
-! LAPACK OPTION
-#ifdef pack
-       do ii=1,M; do jj=1,M
-         X(ii,jj)=Smat(ii,jj)
-       enddo; enddo
-       if (allocated(WORK)) deallocate(WORK); allocate(WORK(1))
-       call dsyev('V','L',M,X,M,RMM(M13),WORK,-1,info)
-       LWORK=int(WORK(1));  deallocate(WORK); allocate(WORK(LWORK))
-       call dsyev('V','L',M,X,M,RMM(M13),WORK,LWORK,info)
-#endif
-!--------------------------------------!
-! Here, we obtain the transformation matrices X and Y for converting 
-! from the atomic orbital to a molecular orbital basis (truncated
-! during linear dependency elimination). 
-! S is the overlap matrix
-! s is the diagonal eigenvalue matrix of S
-! U is the eigenvector matrix of S
-! X=U s^(-1/2)
-! matrix X's dimension is M*3M. In the first M*M terms it contains
-! the transformation matrices and in the other M*2M terms it contains
-! auxiliar matrices.
-            call g2g_timer_start('inicio1')
-            do j=1,M
-              if (RMM(M13+j-1).lt.1.0D-06) then
-                write(*,*) 'LINEAR DEPENDENCY DETECTED'
-                do i=1,M
-                  X(i,j)=0.0D0
-                  Y(i,j)=0.0D0
-                enddo
-              else
-                do i=1,M
-                  Y(i,j)=X(i,j)*sqrt(RMM(M13+j-1))
-                  X(i,j)=X(i,j)/sqrt(RMM(M13+j-1))       
-                enddo
-              endif
-            enddo
+! FFR: Canonical Diagonalization of Overlap
+!--------------------------------------------------------------------!
+! I am keeping Y,Ytrans and Xtrans but they should be replaced
+! by the much nicer Ymat,Ytrp,Xtrp (and X by Xmat). Also, copy
+! into RMM.
+!
+         call sdiag_canonical(overlap,Dvec,Vmat,Xmm,Xtrans,Y,Ytrans)
+         sqsm=matmul(Vmat,Ytrans)
+         X=Xmm
+         do kk=1,M
+           RMM(M13+kk-1)=Dvec(kk)
+         enddo
 !------------------------------------------------------------------------------!
 #ifdef CUBLAS
             DO i=1,M
@@ -491,12 +489,12 @@ c s is in RMM(M13,M13+1,M13+2,...,M13+MM)
                enddo
             enddo
 ! the tranposed matrixes are calculated
-            do i=1,M
-               do j=1,M
-                 xtrans(j,i)=X(i,j)
-                 ytrans(j,i)=Y(i,j)
-               enddo
-            enddo
+!            do i=1,M
+!               do j=1,M
+!                 xtrans(j,i)=X(i,j)
+!                 ytrans(j,i)=Y(i,j)
+!               enddo
+!            enddo
 !------------------------------------------------------------------------------!
 ! External Electric Field components
 !
@@ -506,18 +504,24 @@ c s is in RMM(M13,M13+1,M13+2,...,M13+MM)
 !------------------------------------------------------------------------------!
 ! Rho is transformed to the orthonormal basis
 ! TRANSPORT
-             IF(TRANSPORT_CALC) then
-!            rhofirst=rho   
-             open(unit=100000,file='rhofirst')
-             DO i=1,M
-                DO j=1,M
-                    read(100000,*) rhofirst(i,j)
-!                    write(100000,*) rho(i,j)
-                ENDDO
-             ENDDO
-!             stop 'HE ESCRITO RHOFIRST'
-!            write(*,*) 'HE ESCRITO RHOFIRST'
-             write(*,*) ' HE LEIDO RHOFIRST '
+             IF(TRANSPORT_CALC) THEN
+                open(unit=100000,file='rhofirst')
+                IF(generate_rho0) then
+                   DO i=1,M
+                      DO j=1,M
+                         write(100000,*) rho(i,j)
+                      ENDDO
+                   ENDDO
+                   rhofirst=rho
+                   write(*,*) 'HE ESCRITO RHOFIRST'
+                else            
+                   DO i=1,M
+                      DO j=1,M
+                         read(100000,*) rhofirst(i,j)
+                      ENDDO
+                   ENDDO
+                   write(*,*) ' HE LEIDO RHOFIRST '
+                ENDIF
              ENDIF
 ! with matmul:
 #ifdef CUBLAS
@@ -575,9 +579,12 @@ c         call int3mems()
 !             GammaMagnus=0.000012095
 !            GammaMagnus=0.00184 ! GammaMagnus es la Gamma que se usa en los pasos de Magnus
 !            GammaMagnus=0.0048380
-            GammaMagnus=0.024190
+            GammaMagnus=driving_rate
+!            GammaMagnus=0.012
+!            GammaMagnus=0.05
             GammaVerlet=GammaMagnus*0.1 ! GammaVerlet se usa en los primeros 200 pasos en los que se hace Verlet
           endif
+          write(*,*) ' Driving Rate =', GammaMagnus
 !
             call g2g_timer_stop('inicio')
 !##############################################################################!
@@ -730,106 +737,192 @@ c using commutator
 c--------------------------------------c
 ! TRANSPORT
           if(TRANSPORT_CALC) then
-            call g2g_timer_start('TRANSPORT')
+            call g2g_timer_start('TRANSPORT - b Verlet -')
             if(istep.eq.1) then 
                 open(unit=55555,file='DriveMul')
                 open(unit=51515,file='DriveMulAtom')
             endif
+            write(*,*) '1'
             if(istep.ge.3) then
-! compute the driving term for transport properties            
-              call ELECTROSTAT(rho1,mapmat,overlap,rhofirst,GammaVerlet)
+! compute the driving term for transport properties
+              fxx=GammaVerlet*exp(-0.00001*(dble(istep-1000))**2)    
+              call ELECTROSTAT(rho1,mapmat,overlap,rhofirst,fxx)
               re_traza=0.0D0
+              write(*,*) '2'
 ! Mulliken population analysis for the driving term
-              rhoscratch=REAL(rho1)
-              call g2g_timer_start('Mulliken charges - cu -')
-              call cumsp_r(rhoscratch,devPtrS,rhoscratch,M)
-              call g2g_timer_stop('Mulliken charges - cu -')
-              do n=1,natom
-                  q(n)=0.0D0
-              enddo
-              do i=1,M
-                 q(Nuc(i))=q(Nuc(i))-rhoscratch(i,i)
-              enddo
-              do i=1,natom
-                 write(51515,*) i,i,q(i)
-              enddo
-              if(groupcharge) then
-                  qgr=0.0d0
-                  do n=1,natom
+              if((ipop.eq.1).and.
+     >          (mod(istep-1,save_charge_freq*10)==0)) then
+                 rhoscratch=REAL(rho1)
+                 write(*,*) '3'
+                 call g2g_timer_start('Mulliken charges - cu -')
+                 call cumsp_r(rhoscratch,devPtrS,rhoscratch,M)
+                 call g2g_timer_stop('Mulliken charges - cu -')
+                 do n=1,natom
+                    q(n)=0.0D0
+                 enddo
+                 do i=1,M
+                    q(Nuc(i))=q(Nuc(i))-rhoscratch(i,i)
+                 enddo
+!                 do i=1,natom
+!                    write(51515,*) i,i,q(i)
+!                 enddo
+                 if(groupcharge) then
+                    qgr=0.0d0
+                    do n=1,natom
                        qgr(group(n))=qgr(group(n))+q(n)
-                  enddo
-                  do n=1,ngroup
-                     write(55555,*) n,n,qgr(n)
-                     re_traza=re_traza+qgr(n)
-                  enddo
-                  write(55555,*) 'tot=',re_traza
-                  re_traza=0
-                  write(55555,*) '-------------------------'
+                    enddo
+                    do n=1,ngroup
+                       write(55555,*) n,n,qgr(n)
+                       re_traza=re_traza+qgr(n)
+                    enddo
+                    write(55555,*) 'tot=',re_traza
+                    re_traza=0
+                    write(55555,*) '-------------------------'
+                 endif
               endif
-              rho1=matmul(ytrans,rho1)
-              rho1=matmul(rho1,y)
             endif
+! Lowdin Population
+            if(lpop) then
+               if(istep.eq.1) then
+                  open(unit=525252,file='DriveLowd')
+!                  open(unit=535353,file='DriveLowdAtom')
+               endif
+               if((istep.ge.3).and.
+     >            (mod(istep-1,save_charge_freq*10)==0)) then
+                 rhoscratch=REAL(rho1)
+                 do n=1,natom
+                     q(n)=0.0D0
+                 enddo
+                 call lowdinpop(M,natom,rhoscratch,sqsm,Nuc,q)
+!              do i=1,natom
+!                 write(535353,*) i,i,q(i)
+!              enddo
+                 if(groupcharge) then
+                   qgr=0.0d0
+                   do n=1,natom
+                      qgr(group(n))=qgr(group(n))+q(n)
+                   enddo
+                   do n=1,ngroup
+                      write(525252,*) n,n,qgr(n)
+                  enddo
+                  write(525252,*) '-------------------------' 
+                endif
+              endif    
+            endif
+!            rho1=matmul(ytrans,rho1)
+!            rho1=matmul(rho1,y)
+            call g2g_timer_start('complex_rho_ao_to_on-cu')
+            rho1=basechange_cublas(M,rho1,devPtrY,'dir')
+            call g2g_timer_stop('complex_rho_ao_to_on-cu')
           endif
-             call g2g_timer_stop('TRANSPORT')
-             call g2g_timer_start('Verlet')
-             call g2g_timer_start('commutator')
+          call g2g_timer_stop('TRANSPORT - b Verlet -')
+          call g2g_timer_start('Verlet')
+          call g2g_timer_start('commutator')
 #ifdef CUBLAS
-               rhonew=commutator_cublas(fock,rho)
-               rhonew=rhold-dt_lpfrg*(Im*rhonew)
+          rhonew=commutator_cublas(fock,rho)
+          rhonew=rhold-dt_lpfrg*(Im*rhonew)
 #else
-               rhonew=commutator(fock,rho)
-               rhonew=rhold-dt_lpfrg*(Im*rhonew)
+          rhonew=commutator(fock,rho)
+          rhonew=rhold-dt_lpfrg*(Im*rhonew)
 #endif
-              call  g2g_timer_stop('commutator')
-            if((istep.ge.3).and.(TRANSPORT_CALC==.true.)) then
+          call  g2g_timer_stop('commutator')
+          if((istep.ge.3).and.(TRANSPORT_CALC)) then
 ! Add the driving term to the propagation
-!               call g2g_timer_sum_start('TRANSPORT')
+               write(*,*) 'adding driving term to the density'
                rhonew=rhonew-rho1
-!               call g2g_timer_sum_stop('TRANSPORT')
-!               write(*,*) 'ADENTRO'
-            endif
+          endif
 c Density update (rhold-->rho, rho-->rhonew)
                     rhold=rho
                     rho=rhonew
             call g2g_timer_stop('Verlet')
 ! END OF VERLET PROPAGATOR
 !####################################################################!
-             else
+          else
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
 ! DENSITY MATRIX PROPAGATION USING MAGNUS ALGORITHM
-            if(TRANSPORT_CALC) then
 ! compute the driving term for transport properties
-              call g2g_timer_start('TRANSPORT')            
-              call ELECTROSTAT(rho1,mapmat,overlap,rhofirst,GammaMagnus)
-              re_traza=0.0D0
-! Mulliken population analysis for the driving term
-              rhoscratch=REAL(rho1)
-              call g2g_timer_start('Mulliken charges - cu -')
-              call cumsp_r(rhoscratch,devPtrS,rhoscratch,M)
-              call g2g_timer_stop('Mulliken charges - cu -')
-              do n=1,natom
-                 q(n)=0.0D0
-              enddo
-              do i=1,M
-                 q(Nuc(i))=q(Nuc(i))-rhoscratch(i,i)
-              enddo
-              if(groupcharge) then
-                  qgr=0.0d0
-                  do n=1,natom
-                       qgr(group(n))=qgr(group(n))+q(n)
-                  enddo
-                  do n=1,ngroup
-                     write(55555,*) n,n,qgr(n)
-                     re_traza=re_traza+qgr(n)
-                  enddo
-                  write(55555,*) 'tot=',re_traza
-                  re_traza=0
-                  write(55555,*) '-------------------------'
+! TRANSPORT
+          if(TRANSPORT_CALC) then
+              call g2g_timer_start('TRANSPORT - b magnus -')
+              if(istep.eq.1) then
+                  open(unit=55555,file='DriveMul')
+!                 open(unit=51515,file='DriveMulAtom')
               endif
-              rho1=matmul(ytrans,rho1)
-              rho1=matmul(rho1,y)
-              call g2g_timer_stop('TRANSPORT')
-            endif
+              if(istep.ge.3) then
+! compute the driving term for transport properties
+                 if(istep.le.1000) then 
+                    fxx=GammaMagnus*exp(-0.00001*(dble(istep-1000))**2)  
+                 else
+                    fxx=GammaMagnus
+                 endif
+                 call ELECTROSTAT(rho1,mapmat,overlap,rhofirst,fxx)
+                 re_traza=0.0D0
+! Mulliken population analysis for the driving term
+                 if((ipop.eq.1).and.
+     >             (mod(istep-1,save_charge_freq)==0)) then
+                    rhoscratch=REAL(rho1)
+                    call g2g_timer_start('Mulliken charges - cu -')
+                    call cumsp_r(rhoscratch,devPtrS,rhoscratch,M)
+                    call g2g_timer_stop('Mulliken charges - cu -')
+                    do n=1,natom
+                       q(n)=0.0D0
+                    enddo
+                    do i=1,M
+                       q(Nuc(i))=q(Nuc(i))-rhoscratch(i,i)
+                    enddo
+!                 do i=1,natom
+!                    write(51515,*) i,i,q(i)
+!                 enddo
+                    if(groupcharge) then
+                       qgr=0.0d0
+                       do n=1,natom
+                          qgr(group(n))=qgr(group(n))+q(n)
+                       enddo
+                       do n=1,ngroup
+                          write(55555,*) n,n,qgr(n)
+                          re_traza=re_traza+qgr(n)
+                       enddo
+                       write(55555,*) 'tot=',re_traza
+                       re_traza=0
+                       write(55555,*) '-------------------------'
+                    endif
+                 endif
+              endif
+! Lowdin Population
+              if(lpop) then
+                  if(istep.eq.1) then
+                     open(unit=525252,file='DriveLowd')
+!                    open(unit=535353,file='DriveLowdAtom')
+                  endif
+                  if((istep.ge.3).and.
+     >              (mod(istep-1,save_charge_freq)==0)) then
+                    rhoscratch=REAL(rho1)
+                    do n=1,natom
+                       q(n)=0.0D0
+                    enddo
+                    call lowdinpop(M,natom,rhoscratch,sqsm,Nuc,q)
+!              do i=1,natom
+!                 write(535353,*) i,i,q(i)
+!              enddo
+                    if(groupcharge) then
+                       qgr=0.0d0
+                       do n=1,natom
+                         qgr(group(n))=qgr(group(n))+q(n)
+                       enddo
+                       do n=1,ngroup
+                          write(525252,*) n,n,qgr(n)
+                       enddo
+                       write(525252,*) '-------------------------'
+                    endif
+                  endif
+              endif      
+!              rho1=matmul(ytrans,rho1)
+!              rho1=matmul(rho1,y)
+              call g2g_timer_start('complex_rho_ao_to_on-cu')
+              rho1=basechange_cublas(M,rho1,devPtrY,'dir')
+              call g2g_timer_stop('complex_rho_ao_to_on-cu')
+              call g2g_timer_stop('TRANSPORT - b magnus -')
+          endif
 #ifdef CUBLAS
                 call g2g_timer_start('cupredictor')
                 call cupredictor(F1a,F1b,fock,rho,devPtrX,factorial,
@@ -848,16 +941,15 @@ c Density update (rhold-->rho, rho-->rhonew)
                 call magnus(fock,rho,rhonew,M,NBCH,dt_magnus,factorial)
                 call g2g_timer_stop('magnus')
 #endif
-            if(TRANPORT_CALC==.true.) then
+            if(TRANSPORT_CALC == .true.) then
 ! Add the driving term to the propagation
-!               call g2g_timer_sum_start('TRANSPORT')
+               write(*,*) 'adding driving term to the density'
                rhonew=rhonew-rho1
-!               call g2g_timer_sum_stop('TRANSPORT')
             endif
 ! density update and fock storage
-                 F1a=F1b
-                 F1b=fock
-                 rho=rhonew
+               F1a=F1b
+               F1b=fock
+               rho=rhonew
 ! END OF MAGNUS PROPAGATION
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
               endif
@@ -952,17 +1044,18 @@ c The real part of the density matrix in the atomic orbital basis is copied in R
 c u in Debyes
 !# END OF DIPOLE MOMENT CALCULATION
 c-------------------------MULLIKEN CHARGES-----------------------------------------------!
+             if(ipop.eq.1) then  
                 call g2g_timer_start('Mulliken Population')   
 ! open files to store Mulliken Population Analysis each step of the dynamics
                 if(istep.eq.1) then
-                   open(unit=1111111,file='Mulliken')
+!                   open(unit=1111111,file='Mulliken')
                    if (groupcharge) then
                       open(unit=678,file='MullikenGroup')
                    endif
                 endif
                 if ((propagator.eq.2).and.(istep.lt.lpfrg_steps)
      >          .and. (.not.tdrestart)) then
-                      if(mod ((istep-1),10) == 0) then
+                      if(mod ((istep-1),save_charge_freq*10) == 0) then 
                          rhoscratch=REAL(rho1)
 #ifdef CUBLAS
                          call cumsp_r(rhoscratch,devPtrS,rhoscratch,M)
@@ -977,7 +1070,7 @@ c-------------------------MULLIKEN CHARGES--------------------------------------
                          enddo
                          if(groupcharge) qgr=0.0d0
                          do n=1,natom
-                            write(1111111,*) n,Iz(n),q(n)
+!                            write(1111111,*) n,Iz(n),q(n)
                             if(groupcharge) then
                                qgr(group(n))=qgr(group(n))+q(n)
                             endif
@@ -989,7 +1082,7 @@ c-------------------------MULLIKEN CHARGES--------------------------------------
                              write(678,*) '-------------------------'
                          endif
                       endif
-                   else
+                   elseif(mod ((istep-1),save_charge_freq) == 0) then
                    rhoscratch=REAL(rho1)
 #ifdef CUBLAS
                    call cumsp_r(rhoscratch,devPtrS,rhoscratch,M)
@@ -1004,7 +1097,7 @@ c-------------------------MULLIKEN CHARGES--------------------------------------
                    enddo
                    if(groupcharge) qgr=0.0d0
                    do n=1,natom
-                      write(1111111,*) n,Iz(n),q(n)
+!                      write(1111111,*) n,Iz(n),q(n)
                       if(groupcharge) then
                          qgr(group(n))=qgr(group(n))+q(n)
                       endif
@@ -1017,7 +1110,63 @@ c-------------------------MULLIKEN CHARGES--------------------------------------
                  write(678,*) '------------------------------------'
                endif
                call g2g_timer_stop('Mulliken Population')
+             endif
 c-------------------END OF MULLIKEN CHARGES-----------------------------------------------
+!-------------------LOWDIN POPULATIONS----------------------------------------------------
+! open files to store Mulliken Population Analysis each step of the dynamics
+                if(lpop) then
+                   call g2g_timer_start('Lowdin Population')
+                   if(istep.eq.1) then
+!                      open(unit=12121212,file='Lowdin')
+                       if (groupcharge) then
+                          open(unit=13131313,file='LowdinGroup')
+                       endif
+                    endif
+                    if ((propagator.eq.2).and.(istep.lt.lpfrg_steps)
+     >                 .and. (.not.tdrestart)) then
+                       if(mod ((istep-1),save_charge_freq*10) == 0) then
+                          rhoscratch=REAL(rho1)
+                          do n=1,natom
+                            q(n)=Iz(n)
+                          enddo
+                          call lowdinpop(M,natom,rhoscratch,sqsm,Nuc,q)
+                          if(groupcharge) qgr=0.0d0
+                          do n=1,natom
+!                             write(12121212,*) n,Iz(n),q(n)
+                             if(groupcharge) then
+                                qgr(group(n))=qgr(group(n))+q(n)
+                             endif
+                          enddo
+                          if(groupcharge) then
+                             do n=1,ngroup
+                                write(13131313,*) n,n,qgr(n)
+                             enddo
+                             write(13131313,*) '----------------------'
+                         endif
+                      endif
+                   elseif(mod ((istep-1),save_charge_freq) == 0) then
+                   rhoscratch=REAL(rho1)
+                   do n=1,natom
+                         q(n)=Iz(n)
+                   enddo
+                   call lowdinpop(M,natom,rhoscratch,sqsm,Nuc,q)
+                   if(groupcharge) qgr=0.0d0
+                        do n=1,natom
+!                            write(12121212,*) n,Iz(n),q(n)
+                            if(groupcharge) then
+                               qgr(group(n))=qgr(group(n))+q(n)
+                            endif
+                         enddo
+                         if(groupcharge) then
+                             do n=1,ngroup
+                                write(13131313,*) n,n,qgr(n)
+                             enddo
+                             write(13131313,*) '----------------------'
+                         endif
+                    endif
+                    call g2g_timer_stop('Lowdin Population')
+               endif
+!!-----------------------------------------------------------------------------------------
 !       if (nopt.ne.3) then
 !       write(*,300) niter,DAMP,E
 !       endif
@@ -1025,6 +1174,8 @@ c
 c      write(*,*) 'Coulomb E',E2-Ex,Ex
                call g2g_timer_stop('TD step')
                write(*,*)
+               if((istep.ge.10).and.(generate_rho0)) 
+     >         stop 'RHO0 GENERATED'
  999           continue
 !
 !##############################################################################!

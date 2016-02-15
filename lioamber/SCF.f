@@ -169,6 +169,7 @@ c
          fockbias=0.0d0
 
          weight=0.195d0
+         weight=0.0d0
          call vector_selection(1,orb_group,orb_selection)
          call fterm_biaspot(M,sqsm,orb_selection,weight,fockbias)
 
@@ -634,6 +635,7 @@ c-------------Decidiendo cual critero de convergencia usar-----------
         endif
 
         if(.not.hagodiis) then
+          call g2g_timer_start('Fock damping')
           if(niter.ge.2) then
             do k=1,MM
               kk=M5+k-1
@@ -641,63 +643,15 @@ c-------------Decidiendo cual critero de convergencia usar-----------
               RMM(kk)=(RMM(kk)+DAMP*RMM(kk2))/(1.D0+DAMP)
             enddo
           endif
-
 c the newly constructed damped matrix is stored, for next iteration
 c in RMM(M3)
 c
-          do k=1,MM
+         do k=1,MM
             kk=M5+k-1
             kk2=M3+k-1
             RMM(kk2)=RMM(kk)
           enddo
-c
-          do i=1,M
-            do j=1,M
-              X(i,M+j)=0.D0
-              xnano(i,j)=X(j,i)
-            enddo
-          enddo
 
-          do j=1,M
-            do i=1,M
-              X(i,M+j)=0.D0
-            enddo
-            do k=1,j
-              do i=1,M
-                X(i,M+j)=X(i,M+j)+Xnano(i,k)*RMM(M5+j+(M2-k)*(k-1)/2-1)
-              enddo
-            enddo
-c
-            do k=j+1,M
-              do i=1,M
-                X(i,M+j)=X(i,M+j)+Xnano(i,k)*RMM(M5+k+(M2-j)*(j-1)/2-1)
-              enddo
-            enddo
-c
-          enddo
-c
-          kk=0
-          do i=1,M
-            do k=1,M
-              xnano(k,i)=X(i,M+k)
-            enddo
-          enddo
-
-          do j=1,M
-            do i=j,M
-              kk=kk+1
-              RMM(M5+kk-1)=0.D0
-              do k=1,M
-                RMM(M5+kk-1)=RMM(M5+kk-1)+Xnano(k,i)*X(k,j)
-              enddo
-            enddo
-          enddo
-        endif
-c
-c now F contains transformed F
-c diagonalization now
-c
-! FFR: Te odio
             fock=0
             do j=1,M
               do k=1,j
@@ -711,10 +665,28 @@ c
 ! FFR: Van Voorhis Term for not DIIS
 !--------------------------------------------------------------------!
          if (dovv.eqv..true.) fock=fock+fockbias
-         fock=basechange(M,Xtrans,fock,X)
 
 
-
+#ifdef CUBLAS
+            call cumxtf(fock,devPtrX,fock,M)
+            call cumfx(fock,DevPtrX,fock,M)
+#else
+            fock=basechange_gemm(M,fock,x)
+#endif
+          do j=1,M
+             do k=1,j
+                RMM(M5+j+(M2-k)*(k-1)/2-1)=fock(j,k)
+             enddo
+             do k=j+1,M
+                RMM(M5+k+(M2-j)*(j-1)/2-1)=fock(j,k)
+             enddo
+          enddo
+          call g2g_timer_stop('Fock damping')
+        endif
+c
+c now F contains transformed F
+c diagonalization now
+c
         do i=1,M
           RMM(M15+i-1)=0.D0
           RMM(M13+i-1)=0.D0
@@ -1235,6 +1207,12 @@ c       E=E*627.509391D0
       if(timedep.eq.1) then
         call TD()
       endif
+
+
+      deallocate(Xmat,Xtrp,Ymat,Ytrp)
+      deallocate(Vmat,Dvec)
+      deallocate(sqsm)
+      deallocate(fockbias)
 !
 !--------------------------------------------------------------------!
       call g2g_timer_stop('SCF')

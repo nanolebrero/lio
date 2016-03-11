@@ -507,12 +507,6 @@ c
 
 c End of Starting guess (No MO , AO known)-------------------------------
 c
-      if ((timedep.eq.1).and.(tdrestart)) then
-        call g2g_timer_sum_start('TD')
-        call TD()
-        call g2g_timer_sum_stop('TD')
-        return
-      endif
 c 
 c Precalculate two-index (density basis) "G" matrix used in density fitting
 c here (S_ij in Dunlap, et al JCP 71(8) 1979) into RMM(M7)
@@ -547,6 +541,12 @@ c         call int3mems()
          call g2g_timer_sum_stop('Coulomb precalc')
       endif
 ****
+      if ((timedep.eq.1).and.(tdrestart)) then
+       call g2g_timer_sum_start('TD')
+        call TD()
+        call g2g_timer_sum_stop('TD')
+        return
+      endif
 c---------------------------------------------------------------------
 c Now, damping is performed on the density matrix
 c The first 4 iterations ( it may be changed, if necessary)

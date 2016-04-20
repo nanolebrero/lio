@@ -11,6 +11,8 @@ c---------------------------------------------------
       subroutine SCFOP(E,dipxyz,nstep)
       use garcha_mod
       use mathsubs
+      use general_module ! FFR-fock_qbias
+      use fock_qbias ! FFR-fock_qbias
       implicit real*8 (a-h,o-z)
 
       dimension q(natom),work(1000)
@@ -36,21 +38,18 @@ c       REAL*8 , intent(in)  :: clcoords(4,nsolin)
         logical :: just_int3n,ematalloct
 
 
-!-FFR----------------------------------------------------------------!
-       logical             :: dovv
-       real*8              :: weight
-       integer,allocatable :: atom_group(:)
-       integer,allocatable :: orb_group(:)
-       integer,allocatable :: orb_selection(:)
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+! FFR-fock_qbias : Variable declaration
+       logical :: apply_qbias
+       real*8  :: weight
+       real*8  :: current_time
 
-       real*8,dimension(:,:),allocatable :: fockbias
-       real*8,dimension(:,:),allocatable :: Xmat,Xtrp,Ymat,Ytrp
-       real*8,dimension(:,:),allocatable :: sqsm
-       real*8,dimension(:,:),allocatable :: Vmat
        real*8,dimension(:),allocatable   :: Dvec
-!-FFR----------------------------------------------------------------!
-
-
+       real*8,dimension(:,:),allocatable :: Vmat
+       real*8,dimension(:,:),allocatable :: sqsm
+       real*8,dimension(:,:),allocatable :: Xmat,Xtrp,Ymat,Ytrp
+       real*8,dimension(:,:),allocatable :: mirho_a,mirho_b,mirho
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
 
       call g2g_timer_start('SCF')
       if(verbose) write(*,*) '======>>>> INGRESO A SCFop <<<<=========='
@@ -140,31 +139,6 @@ c Number of electrons
       DAMP0=GOLD
       DAMP=DAMP0
 
-!--------------------------------------------------------------------!
-! FFR: Variable Allocation
-       allocate(Xmat(M,M),Xtrp(M,M),Ymat(M,M),Ytrp(M,M))
-       allocate(Vmat(M,M),Dvec(M))
-       allocate(sqsm(M,M))
-       allocate(fockbias(M,M))
-
-       dovv=.false.
-       if (dovv.eqv..true.) then
-
-        if (.not.allocated(atom_group)) then
-          allocate(atom_group(natom))
-          call read_list('atomgroup',atom_group)
-        endif
-        if (.not.allocated(orb_group)) then
-          allocate(orb_group(M))
-          call atmorb(atom_group,nuc,orb_group)
-        endif
-        if (.not.allocated(orb_selection)) then
-          allocate(orb_selection(M))
-        endif
-       endif
-!--------------------------------------------------------------------!
-
-
 c
 c      Qc=0.0D0
 c      do i=1,natom
@@ -210,6 +184,26 @@ c
 c H H core, 1 electron matrix elements
 c
       call int1(En)
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+! FFR-fock_qbias : Setup
+       allocate(sqsm(M,M))
+       allocate(Vmat(M,M),Dvec(M))
+       allocate(Xmat(M,M),Xtrp(M,M),Ymat(M,M),Ytrp(M,M))
+       allocate(mirho_a(M,M),mirho_b(M,M),mirho(M,M))
+
+       call spunpack('L',M,RMM(M5),Smat)
+       call sdiag_canonical(Smat,Dvec,Vmat,Xmat,Xtrp,Ymat,Ytrp)
+       sqsm=matmul(Vmat,Ytrp)
+       apply_qbias=.true.
+       if (apply_qbias) then
+         weight=0.1d0
+         call fqbias_setup(natom,M,nuc,'atomgroup',weight)
+       endif
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+
+
+
 c
 c -- SOLVENT CASE --------------------------------------
       if(nsol.gt.0) then
@@ -313,23 +307,6 @@ c QUE ES ESTO ????
             Xtrans(i,j)=X(j,i)
           enddo
         enddo
-
-!-FFR----------------------------------------------------------------!
-         call spunpack('L',NM,RMM(M15),Vmat)
-         sqsm=matmul(Vmat,Ytrans)
-
-         if (dovv.eqv..true.) then
-          fockbias=0.0d0
-
-          weight=0.195d0
-          call vector_selection(1,orb_group,orb_selection)
-          call fterm_biaspot(M,sqsm,orb_selection,weight,fockbias)
-
-          weight=-weight
-          call vector_selection(2,orb_group,orb_selection)
-          call fterm_biaspot(M,sqsm,orb_selection,weight,fockbias)
-         endif
-!-FFR----------------------------------------------------------------!
 
 
 
@@ -551,6 +528,11 @@ c
 c
           enddo
 
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+! FFR-fock_qbias : Copy good rho matrices
+          mirho_a=rho_a
+          mirho_b=rho_b
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
           rho_a=basechange(M,Ytrans,rho_a,Y)
           rho_b=basechange(M,Ytrans,rho_b,Y)
 
@@ -571,6 +553,16 @@ c-----------Parte de arriba a la derecha de la matriz (sin incluir terminos diag
               fock_b(j,k)=RMM(M3+k+(M2-j)*(j-1)/2-1)
             enddo
           enddo
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+! FFR-fock_qbias : 
+         if (apply_qbias) then
+           current_time=0.0d0
+           call fqbias_calc(M,current_time,sqsm,fock_a)
+           call fqbias_calc(M,current_time,sqsm,fock_b)
+         endif
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+
 
 
           fock_a=basechange(M,Xtrans,fock_a,X)
@@ -1249,7 +1241,17 @@ c      endif
 c
 c calculates Mulliken poputations
 c       if (ipop.eq.1) then
-      call int1(En)
+       call int1(En)
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+! FFR-fock_qbias : Write Lowdin Group Population
+       call fqbias_lowdinpop(M,natom,mirho_a,sqsm,Iz,'lowdina_gr.txt')
+       call fqbias_lowdinpop(M,natom,mirho_b,sqsm,Iz,'lowdinb_gr.txt')
+       mirho=mirho_a+mirho_b
+       call fqbias_lowdinpop(M,natom,mirho,sqsm,Iz,'lowdin_gr.txt')
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+
+
 c
 c--------------------------------------------------------------
       do n=1,natom

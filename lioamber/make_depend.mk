@@ -5,6 +5,7 @@ src_paths += liomods
 src_paths += maskrmm
 src_paths += mathsubs
 src_paths += general_module
+src_paths += fock_qbias
 
 #
 ######################################################################
@@ -15,6 +16,7 @@ include liomods/liomods.mk
 include maskrmm/maskrmm.mk
 include mathsubs/mathsubs.mk
 include general_module/general_module.mk
+include fock_qbias/fock_qbias.mk
 
 #
 ######################################################################
@@ -41,6 +43,7 @@ objects += general_module.o
 objects += elec.o dns.o
 objects += read_groups.o fterm_biaspot.o
 objects += PackedStorage.o TDop.o
+objects += fock_qbias.o
 
 #
 ######################################################################
@@ -67,6 +70,12 @@ $(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/garcha_mod.mod
 objlist := SCF.o SCFop.o
 $(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/mathsubs.o
 $(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/mathsubs.mod
+
+# mathsubs
+objlist := SCF.o SCFop.o TD.o TDop.o
+$(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/general_module.o
+$(objlist:%.o=$(obj_path)/%.o) : $(obj_path)/general_module.mod
+
 
 # cublas
 ifeq ($(cublas),1)

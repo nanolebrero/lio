@@ -1,5 +1,11 @@
 ######################################################################
 ifeq ($(ifort),1)
+FLAGS += -fpp
+else
+FLAGS += -cpp
+endif
+
+ifeq ($(ifort),1)
   FC   = ifort
   LIBS+= -module ../lioamber/obj
 else
@@ -9,7 +15,6 @@ endif
 
 LIBS += -L../g2g -lg2g
 LIBS += -L../lioamber -llio-g2g
-FLAGS =
 
 ifeq ($(magma),1)
         DEFINE   += -Dmagma

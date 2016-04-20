@@ -27,6 +27,12 @@ c  are stored in files x.dip, y.dip, z.dip.
 c       USE latom
        USE garcha_mod
        use mathsubs
+       use general_module
+       use fock_qbias ! FFR-fock_qbias
+#ifdef CUBLAS
+         use cublasmath
+#endif
+
        IMPLICIT REAL*8 (a-h,o-z)
 
        INTEGER :: istep
@@ -35,9 +41,15 @@ c       USE latom
      >   xnano2,xmm,xtrans,ytrans,Y,fock,
      >   F1a,F1b
        real*8, dimension (:,:), ALLOCATABLE :: elmu
+#ifdef TD_SIMPLE
        COMPLEX*8 :: Im,Ix
        COMPLEX*8,ALLOCATABLE,DIMENSION(:,:) ::
      >   rho,rhonew,rhold,xnano,rho1
+#else
+       COMPLEX*16 :: Im,Ix
+       COMPLEX*16,ALLOCATABLE,DIMENSION(:,:) ::
+     >   rho,rhonew,rhold,xnano,rho1
+#endif       
        DIMENSION q(natom)
        REAL*8,dimension(:),ALLOCATABLE :: factorial
        INTEGER            :: LWORK,ii,jj
@@ -49,20 +61,67 @@ c       USE latom
        REAL*8 ::
      >   dt_magnus,dt_lpfrg
         logical :: just_int3n,ematalloct
+#ifdef CUBLAS
+      integer sizeof_real
+      parameter(sizeof_real=8)
+      integer sizeof_complex
+#ifdef TD_SIMPLE
+      parameter(sizeof_complex=8)
+#else
+      parameter(sizeof_complex=16)
+#endif
+      integer stat
+      integer*8 devPtrX, devPtrY,devPtrXc
+      external CUBLAS_INIT, CUBLAS_SET_MATRIX
+      external CUBLAS_SHUTDOWN, CUBLAS_ALLOC
+      integer CUBLAS_ALLOC, CUBLAS_SET_MATRIX
+#endif
+!-----------------------------------------------!
 
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+! FFR-fock_qbias : Variable declaration
+       logical :: apply_qbias
+       real*8  :: weight
+       real*8  :: current_time
+
+       real*8,dimension(:),allocatable   :: Dvec
+       real*8,dimension(:,:),allocatable :: Vmat
+       real*8,dimension(:,:),allocatable :: sqsm
+       real*8,dimension(:,:),allocatable :: Xmat,Xtrp,Ymat,Ytrp
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+
        call g2g_timer_start('TD')
        call g2g_timer_start('inicio')
        just_int3n = .false.
        ALLOCATE(factorial(NBCH))
 !!------------------------------------!!
+#ifdef CUBLAS
+       write(*,*) 'USING CUBLAS'
+       stat=CUBLAS_INIT()
+       if (stat.NE.0) then
+           write(*,*) "initialization failed -TD"
+           call CUBLAS_SHUTDOWN
+           stop
+       endif
+#endif
+#ifdef TD_SIMPLE
+        write(*,*) 'simple presition complex'
+#else
+        write(*,*) 'double presition complex'
+#endif
        if(propagator.eq.2) then
           dt_magnus=tdstep
           dt_lpfrg=tdstep*0.10D0
           factorial(1)=1.0D0
-          DO ii=2,NBCH
-             factorial(ii)=factorial(ii-1)/ii
+#ifdef CUBLAS
+          DO ii=1,NBCH
+             factorial(ii)=1.0D0/ii
           ENDDO
+#else     
+       DO ii=2,NBCH
+         factorial(ii)=factorial(ii-1)/ii
+       ENDDO
+#endif
        endif
        if(propagator.eq.1) then
           dt_lpfrg=tdstep
@@ -234,6 +293,27 @@ c xmm es la primer matriz de (M,M) en el vector X
 !------------------------------------------------------------------------------!
 ! H H core, 1 electron matrix elements
             call int1(En)
+
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+! FFR-fock_qbias : Setup
+       allocate(sqsm(M,M))
+       allocate(Vmat(M,M),Dvec(M))
+       allocate(Xmat(M,M),Xtrp(M,M),Ymat(M,M),Ytrp(M,M))
+
+       call spunpack('L',M,RMM(M5),Smat)
+       call sdiag_canonical(Smat,Dvec,Vmat,Xmat,Xtrp,Ymat,Ytrp)
+       sqsm=matmul(Vmat,Ytrp)
+       apply_qbias=.false.
+       if (apply_qbias) then
+         weight=0.195d0
+         call fqbias_setup(natom,M,nuc,'atomgroup',weight)
+       endif
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+
+
+
+
 !--------------------------------------!
 ! SOLVENT CASE
             call intsol(E1s,Ens,.true.)
@@ -287,6 +367,36 @@ c s is in RMM(M13,M13+1,M13+2,...,M13+MM)
               endif
             enddo
 !------------------------------------------------------------------------------!
+#ifdef CUBLAS
+            DO i=1,M
+               DO j=1,M
+                  rho1(i,j)=DCMPLX(X(i,j),0.0D0)
+               ENDDO
+            ENDDO
+            stat = CUBLAS_ALLOC(M*M, sizeof_real, devPtrX)
+            stat = CUBLAS_ALLOC(M*M, sizeof_complex, devPtrXc)
+            stat = CUBLAS_ALLOC(M*M, sizeof_complex, devPtrY)
+            if (stat.NE.0) then
+            write(*,*) "X and/or Y memory allocation failed"
+            call CUBLAS_SHUTDOWN
+            stop
+            endif
+            stat=CUBLAS_SET_MATRIX(M,M,sizeof_complex,rho1,M,devPtrXc,M)
+            stat=CUBLAS_SET_MATRIX(M,M,sizeof_real,x,M,devPtrX,M)
+            DO i=1,M
+               DO j=1,M
+                  rho1(i,j)=DCMPLX(Y(i,j),0.0D0)
+               ENDDO
+            ENDDO
+            stat=CUBLAS_SET_MATRIX(M,M,sizeof_complex,rho1,M,devPtrY,M)
+            if (stat.NE.0) then
+            write(*,*) "X and/or Y setting failed"
+            call CUBLAS_SHUTDOWN
+            stop
+            endif
+            rho1=0
+#endif
+!------------------------------------------------------------------------------!
 ! the transformation matrices is copied in xmm
 !
             do i=1,M
@@ -310,8 +420,8 @@ c s is in RMM(M13,M13+1,M13+2,...,M13+MM)
 !------------------------------------------------------------------------------!
 ! Rho is transformed to the orthonormal basis
 ! with matmul:
-       rho=matmul(ytrans,rho)
-       rho=matmul(rho,y)
+       rho1=matmul(ytrans,rho)
+       rho=matmul(rho1,y)
 ! with matmulnanoc
 ! (NO LONGER AVAILABLE; USE BASECHANGE INSTEAD)
 !            call matmulnanoc(rho,Y,rho1,M)
@@ -334,7 +444,18 @@ c s is in RMM(M13,M13+1,M13+2,...,M13+MM)
             do 999 istep=1, ntdstep
 !--------------------------------------!
               call g2g_timer_start('iteration')
-              t=(istep-1)*dt_lpfrg
+              if ((propagator.eq.2).and.(istep.lt.lpfrg_steps)
+     >                             .and.(.not.tdrestart)) then
+                 t=(istep-1)*tdstep*0.1
+              else
+                 t=19.9*tdstep
+                 t=t+(istep-200)*tdstep
+              endif
+
+              if (propagator.eq.1) then
+                 t=(istep-1)*tdstep
+              endif
+
               t=t*0.02419
               write(*,*) 'evolution time (fs)  =', t
 !--------------------------------------!
@@ -377,55 +498,30 @@ c ELECTRIC FIELD CASE - Type=gaussian (ON)
 ! Here we obtain the fock matrix in the molecular orbital (MO) basis.
 ! where U matrix with eigenvectors of S , and s is vector with
 ! eigenvalues
-            do j=1,M
-              do k=1,j
-                 xnano(k,j)=RMM(M5+j+(M2-k)*(k-1)/2-1)
-              enddo
-              do k=j+1,M
-                 xnano(k,j)=RMM(M5+k+(M2-j)*(j-1)/2-1)
-              enddo
-            enddo
-            do i=1,M
-              do j=1,M
-                 X(i,M+j)=0.D0
-                 xnano2(i,j)=X(j,i)
-              enddo
-           enddo
-           call g2g_timer_start('actualiza rmm1')
-           do j=1,M
-              do k=1,M
-                 do i=1,M
-                 X(i,M+j)=X(i,M+j)+X(k,i)*xnano(k,j)
-                 enddo
-              enddo
-           enddo
-           call g2g_timer_stop('actualiza rmm1')
-           kk=0
-           do i=1,M
-              do k=1,M
-              xnano(k,i)=X(i,M+k)
-              enddo
-           enddo
-!
-           do j=1,M
-              do i=j,M
-                 kk=kk+1
-                 RMM(M5+kk-1)=0.D0
-                 do k=1,M
-                    RMM(M5+kk-1)=RMM(M5+kk-1)+Xnano(k,i)*X(k,j)
-                  enddo
-               enddo
-            enddo
-!
-c Fock triangular matrix contained in RMM(M5,M5+1,M5+2,...,M5+MM) is copied to square matrix fock.
-            do j=1,M
-               do k=1,j
-                  fock(j,k)=RMM(M5+j+(M2-k)*(k-1)/2-1)
-               enddo
-               do k=j+1,M
-                  fock(j,k)=RMM(M5+k+(M2-j)*(j-1)/2-1)
-               enddo
-            enddo
+
+           call g2g_timer_start('fock')
+           call spunpack('L',M,RMM(M5),fock)
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+! FFR-fock_qbias : Van Voorhis Term for DIIS
+         if (apply_qbias) then
+           current_time=t
+           call fqbias_calc(M,current_time,sqsm,fock)
+         endif
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+
+#ifdef CUBLAS
+           xnano2 = basechange_cublas(M,fock,devPtrX,'dir')
+           fock=xnano2
+#else
+           xnano2=matmul(xtrans,fock)
+           fock=matmul(xnano2,xmm)
+#endif
+           call sprepack('L',M,RMM(M5),fock)
+           call g2g_timer_stop('fock')
+           DO i=1,MM
+           write(333,*) RMM(M5+i)
+           ENDDO
 c Now fock is stored in molecular orbital basis.
 c
 !  stores F1a and F1b for magnus propagation
@@ -488,8 +584,14 @@ c           rhonew=rhold-(tdstep*Im*(matmul(fock,rho)))
 c           rhonew=rhonew+(tdstep*Im*(matmul(rho,fock)))
 c--------------------------------------c
 ! using commutator:
+#ifdef CUBLAS
+              rhonew=commutator_cublas(fock,rho)
+              rhonew=rhold-dt_lpfrg*(Im*rhonew)
+#else
+
               rhonew=commutator(fock,rho)
               rhonew=rhold-dt_lpfrg*(Im*rhonew)
+#endif
 c Density update (rhold-->rho, rho-->rhonew)
               do i=1,M
                  do j=1,M
@@ -503,8 +605,37 @@ c Density update (rhold-->rho, rho-->rhonew)
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
 ! DENSITY MATRIX PROPAGATION USING MAGNUS ALGORITHM
                  write(*,*) 'Magnus'
-                 call predictor(F1a,F1b,fock,rho,Xtrans,factorial)
-                 call magnus(fock,rho,rhonew,M,NBCH,dt_magnus,factorial)
+#ifdef CUBLAS
+                call g2g_timer_start('cupredictor')
+                call cupredictor(F1a,F1b,fock,rho,devPtrX,factorial,
+     > fxx,fyy,fzz,g,devPtrXc)
+                call g2g_timer_stop('cupredictor')
+                call g2g_timer_start('cumagnus')
+                call cumagnusfac(fock,rho,rhonew,M,NBCH,dt_magnus,
+     >factorial)
+                call g2g_timer_stop('cumagnus')
+!                call g2g_timer_start('magnus_ehrenfest')
+!                call ehren_magnus(M,NBCH,dt_magnus,fock,rho,rhopruebaer)
+!                call g2g_timer_stop('magnus_ehrenfest')
+!                rhopruebaer=rhonew-rhopruebaer
+!                write(111222333,*) rhopruebaer
+!                rhold=rhonew
+!                call g2g_timer_start('MAGNUS_MODIFIED')
+!                call magnus_cublas(fock,rho,rhonew,M,NBCH,dt_magnus,
+!     >factorial) 
+!                call g2g_timer_stop('MAGNUS_MODIFIED')
+!                rhold=rhonew-rhold
+!                write(22222222,*) rhold
+!                stop 'hemos escrito rhold'
+#else
+                call g2g_timer_start('predictor')
+                call predictor(F1a,F1b,fock,rho,factorial,
+     > fxx,fyy,fzz,g)
+                call g2g_timer_stop('predictor')
+                call g2g_timer_start('magnus')
+                call magnus(fock,rho,rhonew,M,NBCH,dt_magnus,factorial)
+                call g2g_timer_stop('magnus')
+#endif
                  F1a=F1b
                  F1b=fock
                  rho=rhonew
@@ -516,8 +647,8 @@ c Here we transform the density to the atomic orbital basis and take the real pa
 c can be descarted since for a basis set of purely real functions the fock matrix is real and symetric and depends only on 
 c the real part of the complex density matrix. (This won't be true in the case of hybrid functionals)
 c with matmul:
-              rho1=matmul(xmm,rho)
-              rho1=matmul(rho1,xtrans)
+              xnano=matmul(xmm,rho)
+              rho1=matmul(xnano,xtrans)
 !       rho1=REAL(rho1)
 c with matmulnanoc:
 c (NO LONGER AVAILABLE; USE BASECHANGE INSTEAD)
@@ -555,6 +686,24 @@ c The real part of the density matrix in the atomic orbital basis is copied in R
                     enddo
                   endif
               endif
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+! MULLIKEN POPULATION ANALYSIS (FFR - Simplified)
+!--------------------------------------------------------------------!
+       call int1(En)
+       call spunpack('L',M,RMM(M5),Smat)
+       call spunpack('L',M,RMM(M1),RealRho)
+       call fixrho(M,RealRho)
+       call mulliken_calc(natom,M,RealRho,Smat,Nuc,Iz,q)
+       call mulliken_write(85,natom,Iz,q)
+
+!--------------------------------------------------------------------!
+! FFR-fock_qbias : Write Lowdin Group Population
+       call fqbias_lowdinpop(M,natom,RealRho,sqsm,Iz,'lowdin_gr.txt')
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+!
+!
+!
 !###################################################################!
 !# DIPOLE MOMENT CALCULATION
               if(istep.eq.1) then

@@ -10,6 +10,11 @@ c Dario Estrin, 1992
       subroutine SCF(E,dipxyz,nstep)
       use garcha_mod
       use mathsubs
+      use general_module ! FFR-fock_qbias
+      use fock_qbias ! FFR-fock_qbias
+#ifdef CUBLAS
+        use cublasmath
+#endif
 c      use qmmm_module, only : qmmm_struct, qmmm_nml
 c
       implicit real*8 (a-h,o-z)
@@ -34,20 +39,19 @@ c       REAL*8 , intent(in)  :: clcoords(4,nsolin)
         INTEGER, ALLOCATABLE :: IWORK2(:),IPIV(:)
         logical :: just_int3n,ematalloct
 
-!FFR!
-       logical             :: dovv
-       real*8              :: weight
-       integer,allocatable :: atom_group(:)
-       integer,allocatable :: orb_group(:)
-       integer,allocatable :: orb_selection(:)
 
-       real*8,dimension(:,:),allocatable :: fockbias
-       real*8,dimension(:,:),allocatable :: Xmat,Xtrp,Ymat,Ytrp
-       real*8,dimension(:,:),allocatable :: sqsm
-       real*8,dimension(:,:),allocatable :: Vmat
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+! FFR-fock_qbias : Variable declaration
+       logical :: apply_qbias
+       real*8  :: weight
+       real*8  :: current_time
+
        real*8,dimension(:),allocatable   :: Dvec
+       real*8,dimension(:,:),allocatable :: Vmat
+       real*8,dimension(:,:),allocatable :: sqsm
+       real*8,dimension(:,:),allocatable :: Xmat,Xtrp,Ymat,Ytrp
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
 
-!--------------------------------------------------------------------!
 
 
 #ifdef magma
@@ -56,6 +60,7 @@ c       REAL*8 , intent(in)  :: clcoords(4,nsolin)
 
       call g2g_timer_start('SCF')
       if(verbose) write(*,*) '======>>>> INGRESO A SCF <<<<=========='
+
 
       just_int3n = .false.
       alloqueo = .true.
@@ -136,50 +141,6 @@ c
       Qc2=Qc**2
 
 
-! FFR: Variable Allocation
-!--------------------------------------------------------------------!
-       allocate(Xmat(M,M),Xtrp(M,M),Ymat(M,M),Ytrp(M,M))
-       allocate(Vmat(M,M),Dvec(M))
-       allocate(sqsm(M,M))
-       allocate(fockbias(M,M))
-
-       dovv=.false.
-       if (dovv.eqv..true.) then
-
-        if (.not.allocated(atom_group)) then
-          allocate(atom_group(natom))
-          call read_list('atomgroup',atom_group)
-        endif
-        if (.not.allocated(orb_group)) then
-          allocate(orb_group(M))
-          call atmorb(atom_group,nuc,orb_group)
-        endif
-        if (.not.allocated(orb_selection)) then
-          allocate(orb_selection(M))
-        endif
-       endif
-
-       call int1(En)
-       call spunpack('L',M,RMM(M5),Smat)
-       call sdiag_canonical(Smat,Dvec,Vmat,Xmat,Xtrp,Ymat,Ytrp)
-       sqsm=matmul(Vmat,Ytrp)
-
-
-       if (dovv.eqv..true.) then
-         fockbias=0.0d0
-
-         weight=0.195d0
-         weight=0.0d0
-         call vector_selection(1,orb_group,orb_selection)
-         call fterm_biaspot(M,sqsm,orb_selection,weight,fockbias)
-
-         weight=-weight
-         call vector_selection(2,orb_group,orb_selection)
-         call fterm_biaspot(M,sqsm,orb_selection,weight,fockbias)
-       endif
-
-
-
 C----------------------------------------
 c Para hacer lineal la integral de 2 electrone con lista de vecinos. Nano
 
@@ -229,7 +190,26 @@ c
          endif
        endif
 
-      call int1(En)
+       call int1(En)
+
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+! FFR-fock_qbias : Setup
+       allocate(sqsm(M,M))
+       allocate(Vmat(M,M),Dvec(M))
+       allocate(Xmat(M,M),Xtrp(M,M),Ymat(M,M),Ytrp(M,M))
+
+       call spunpack('L',M,RMM(M5),Smat)
+       call sdiag_canonical(Smat,Dvec,Vmat,Xmat,Xtrp,Ymat,Ytrp)
+       sqsm=matmul(Vmat,Ytrp)
+       apply_qbias=.true.
+       if (apply_qbias) then
+         weight=0.195d0
+         call fqbias_setup(natom,M,nuc,'atomgroup',weight)
+       endif
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+
+
       if(nsol.gt.0) then
         call g2g_timer_start('intsol')
         call intsol(E1s,Ens,.true.)
@@ -580,9 +560,14 @@ c-----------Parte de arriba a la derecha de la matriz (sin incluir terminos diag
             enddo
           enddo
 
-! FFR: Van Voorhis Term for DIIS
-!--------------------------------------------------------------------!
-         if (dovv.eqv..true.) fock=fock+fockbias
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+! FFR-fock_qbias : Van Voorhis Term for DIIS
+         if (apply_qbias) then
+           current_time=0.0d0
+           call fqbias_calc(M,current_time,sqsm,fock)
+         endif
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+
 
           fock=basechange(M,Xtrans,fock,X)
 
@@ -662,17 +647,21 @@ c
               enddo
             enddo
 
-! FFR: Van Voorhis Term for not DIIS
-!--------------------------------------------------------------------!
-         if (dovv.eqv..true.) fock=fock+fockbias
 
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+! FFR-fock_qbias : Van Voorhis Term for DIIS
+         if (apply_qbias) then
+           current_time=0.0d0
+           call fqbias_calc(M,current_time,sqsm,fock)
+         endif
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
 
-#ifdef CUBLAS
-            call cumxtf(fock,devPtrX,fock,M)
-            call cumfx(fock,DevPtrX,fock,M)
-#else
+!#ifdef CUBLAS
+!            call cumxtf(fock,devPtrX,fock,M)
+!            call cumfx(fock,devPtrX,fock,M)
+!#else
             fock=basechange_gemm(M,fock,x)
-#endif
+!#endif
           do j=1,M
              do k=1,j
                 RMM(M5+j+(M2-k)*(k-1)/2-1)=fock(j,k)
@@ -1135,6 +1124,7 @@ c
 
 
 
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
 ! MULLIKEN POPULATION ANALYSIS (FFR - Simplified)
 !--------------------------------------------------------------------!
        call int1(En)
@@ -1143,6 +1133,13 @@ c
        call fixrho(M,RealRho)
        call mulliken_calc(natom,M,RealRho,Smat,Nuc,Iz,q)
        call mulliken_write(85,natom,Iz,q)
+
+!--------------------------------------------------------------------!
+! FFR-fock_qbias : Write Lowdin Group Population
+       call fqbias_lowdinpop(M,natom,RealRho,sqsm,Iz,'lowdin_gr.txt')
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+
+
 
 ! NOTE: If 'mulliken_calc' is renamed as 'mulliken', the code will
 ! malfunction. I DON'T KNOW WHY.
@@ -1205,6 +1202,9 @@ c      endif
 c       E=E*627.509391D0
 
       if(timedep.eq.1) then
+        DO i=1,MM
+           write(3232,*) RMM(i)
+        ENDDO
         call TD()
       endif
 
@@ -1212,7 +1212,6 @@ c       E=E*627.509391D0
       deallocate(Xmat,Xtrp,Ymat,Ytrp)
       deallocate(Vmat,Dvec)
       deallocate(sqsm)
-      deallocate(fockbias)
 !
 !--------------------------------------------------------------------!
       call g2g_timer_stop('SCF')

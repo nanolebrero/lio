@@ -46,8 +46,9 @@ vpath %.mod $(obj_path)
 objects   =
 src_paths =
 include make_depend.mk
-vpath %.f  $(src_paths)
-vpath %.mk $(src_paths)
+vpath %.f   $(src_paths)
+vpath %.f90 $(src_paths)
+vpath %.mk  $(src_paths)
 
 # This indicates which flags to use during the compilation
 # of the different objects and which flags to use during
@@ -73,6 +74,9 @@ liblio-g2g.so: $(objects:%.o=$(obj_path)/%.o)
 	$(FC) $(LFLAGS) $^ $(LIBS) -o $@
 
 $(obj_path)/%.o   :  %.f $(makefiles) |  $(obj_path)
+	$(FC) $(FFLAGS) -c $< -o $@ 
+
+$(obj_path)/%.o   :  %.f90 $(makefiles) |  $(obj_path)
 	$(FC) $(FFLAGS) -c $< -o $@ 
 
 $(obj_path)/%.mod :  %.f $(makefiles) |  $(obj_path)

@@ -1,4 +1,4 @@
-!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+!ppl%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
        SUBROUTINE TDop()
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
 c REAL TIME-TDDFT
@@ -27,6 +27,8 @@ c  are stored in files x.dip, y.dip, z.dip.
 c       USE latom
        USE garcha_mod
        USE mathsubs
+       use general_module ! FFR-fock_qbias
+       use fock_qbias ! FFR-fock_qbias
 #ifdef CUBLAS
         use cublasmath
 #endif
@@ -80,6 +82,18 @@ c       USE latom
        INTEGER,ALLOCATABLE :: group(:)
        REAL*8,ALLOCATABLE  :: qgr(:)
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+! FFR-fock_qbias : Variable declaration
+       logical :: apply_qbias
+       real*8  :: weight
+       real*8  :: current_time
+
+       real*8,dimension(:),allocatable   :: Dvec
+       real*8,dimension(:,:),allocatable :: Vmat
+       real*8,dimension(:,:),allocatable :: sqsm
+       real*8,dimension(:,:),allocatable :: Xmat,Xtrp,Ymat,Ytrp
+       real*8,dimension(:,:),allocatable :: mirho_a,mirho_b,mirho
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+
        call g2g_timer_start('TD Open Shell')
        call g2g_timer_start('inicio')
        just_int3n = false
@@ -219,7 +233,26 @@ c Initializations/Defaults
             enddo
 !------------------------------------------------------------------------------!
 ! H H core, 1 electron matrix elements
-            call int1(En)                   
+            call int1(En)
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+! FFR-fock_qbias : Setup
+       allocate(sqsm(M,M))
+       allocate(Vmat(M,M),Dvec(M))
+       allocate(Xmat(M,M),Xtrp(M,M),Ymat(M,M),Ytrp(M,M))
+       allocate(mirho_a(M,M),mirho_b(M,M),mirho(M,M))
+
+       call spunpack('L',M,RMM(M5),Smat)
+       call sdiag_canonical(Smat,Dvec,Vmat,Xmat,Xtrp,Ymat,Ytrp)
+       sqsm=matmul(Vmat,Ytrp)
+       apply_qbias=.true.
+       if (apply_qbias) then
+         weight=0.1d0
+         call fqbias_setup(natom,M,nuc,'atomgroup',weight)
+       endif
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+
+
 !--------------------------------------!
 ! SOLVENT CASE                        !OJO QUE ACA ANTES NO HABIA UN IF
             if(nsol.gt.0) then          
@@ -349,15 +382,17 @@ c s is in RMM(M13,M13+1,M13+2,...,M13+MM)
 !--------------------------------------!
               call g2g_timer_start('iteration')
               if ((propagator.eq.2).and.(istep.lt.lpfrg_steps)
-     >      .and. (.not.tdrestart)) then
+     >                             .and.(.not.tdrestart)) then
                  t=(istep-1)*tdstep*0.1
               else
-                 t=20*tdstep
+                 t=19.9*tdstep
                  t=t+(istep-200)*tdstep
               endif
+
               if (propagator.eq.1) then
                  t=(istep-1)*tdstep
               endif
+
               t=t*0.02419
               write(*,*) 'evolution time (fs)  =', t
 !--------------------------------------!
@@ -407,6 +442,16 @@ c ELECTRIC FIELD CASE - Type=gaussian (ON)
            call g2g_timer_start('fock')
             call spunpack('L',M,RMM(M5),fock_a)
             call spunpack('L',M,RMM(M3),fock_b)
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+! FFR-fock_qbias : 
+         if (apply_qbias) then
+           current_time=t
+           call fqbias_calc(M,current_time,sqsm,fock_a)
+           call fqbias_calc(M,current_time,sqsm,fock_b)
+         endif
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+
 #ifdef CUBLAS
             fock_a = basechange_cublas(M,fock_a,devPtrX,'dir')
             fock_b = basechange_cublas(M,fock_b,devPtrX,'dir')
@@ -565,9 +610,11 @@ c with matmul:
 
              call g2g_timer_start('complex_rho_on_to_ao-cu')   !TODO: VER COMO HACER ESTO CON UNA SOLA MATRIZ AUXILIAR COPIANDO A LA POSICION CORRESPONDIENTE DEL RMM
              rho1=basechange_cublas(M,rho_a,devPtrXc,'inv')
+             mirho_a=rho1 ! FFR-fock_qbias
              call sprepack_ctr('L',M,RMM,rho1)
              call sprepack_ctr('L',M,rhoalpha,rho1)
              rho1=basechange_cublas(M,rho_b,devPtrXc,'inv')
+             mirho_b=rho1 ! FFR-fock_qbias
              call sprepack_ctr('L',M,rhobeta,rho1)
              DO i=1,MM
                 RMM(i)=RMM(i)+rhobeta(i)
@@ -578,10 +625,12 @@ c with matmul:
              call g2g_timer_start('complex_rho_on_to_ao')
              rho1=matmul(x,rho_a)
              rho1=matmul(rho1,xtrans)
+             mirho_a=rho1 ! FFR-fock_qbias
              call sprepack_ctr('L',M,RMM,rho1)
              call sprepack_ctr('L',M,rhoalpha,rho1)
              rho1=matmul(x,rho_b)
              rho1=matmul(rho1,xtrans)
+             mirho_b=rho1 ! FFR-fock_qbias
              call sprepack_ctr('L',M,rhobeta,rho1)
              DO i=1,MM
                 RMM(i)=RMM(i)+rhobeta(i)
@@ -613,6 +662,16 @@ c          rho1 = REAL(rho1)
 !                    enddo
 !                  endif
 !              endif
+
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+! FFR-fock_qbias : Write Lowdin Group Population
+       call fqbias_lowdinpop(M,natom,mirho_a,sqsm,Iz,'lowdina_gr.txt')
+       call fqbias_lowdinpop(M,natom,mirho_b,sqsm,Iz,'lowdinb_gr.txt')
+       mirho=mirho_a+mirho_b
+       call fqbias_lowdinpop(M,natom,mirho,sqsm,Iz,'lowdin_gr.txt')
+!%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%!
+
+
 !###################################################################!
 !# DIPOLE MOMENT CALCULATION
               if(istep.eq.1) then
@@ -770,6 +829,7 @@ c
      >  *ff*X(i,M2+k)*X(j,M2+k)
  309  continue
  307   continue
+
 c
 c ELECTRICAL POTENTIAL AND POINT CHARGES EVALUATION
 c

@@ -582,7 +582,6 @@ c      write(*,*) 'empiezo el loop',NMAX
 c-------------------------------------------------------------------
 c-------------------------------------------------------------------
       do 999 while (good.ge.told.and.niter.le.NMAX)
-
         call g2g_timer_start('Total iter')
         call g2g_timer_sum_start('Iteration')
         call g2g_timer_sum_start('Fock integrals')
@@ -774,6 +773,7 @@ c
             kk2=M3+k-1
             RMM(kk2)=RMM(kk)
          enddo
+
 c
 ! xnano=X^T
 !          do i=1,M
@@ -1000,6 +1000,9 @@ c
        call g2g_timer_start('dspev')
        call g2g_timer_sum_pause('SCF acceleration')
        call g2g_timer_sum_start('diagonalization')
+!----------------------------------------------------------!
+! FFRtest - Probando lo que pasa en las matrices estas
+!----------------------------------------------------------!
 c ESSL OPTION ---------------------------------------------------
 #ifdef essl
        call DSPEV(1,RMM(M5),RMM(M13),X(1,M+1),M,M,RMM(M15),M2)
@@ -1137,7 +1140,9 @@ c
        endif
 *
 c--- Damping factor update -
-       DAMP=DAMP0
+       if(niter.gt.50) DAMP=DAMP+1
+       if(niter.gt.50) write(*,*) 'increasing DAMP value', DAMP
+       if(niter.le.50) DAMP=DAMP0
        IDAMP=0
        if (IDAMP.EQ.1) then
          DAMP=DAMP0

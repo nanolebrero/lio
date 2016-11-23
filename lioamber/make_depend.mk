@@ -45,6 +45,7 @@ objects += mathsubs.o
 objects += maskrmm.o
 objects += density.o
 objects += transport.o
+objects += time.o
 objects += fterm_biaspot.o lowdinpop.o general_module.o
 ifeq ($(cublas),1)
 objects += cublasmath.o 

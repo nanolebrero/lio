@@ -4,6 +4,8 @@ c Subroutine for evaluating the reaction field contribution to
 c the one electron matrix elements
 c
 c Dipole moment should be given in input (3 components)
+
+c In the case of an external field, the components of this electric field should be given instead of the dipole moment.
 c
 c integrals evaluated using Obara Saika method
 c 19-1-93
